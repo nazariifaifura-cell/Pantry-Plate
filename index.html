@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>pantry & plate</title>
+  <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
   <style>
     :root {
       --bg: #FAF9F6;
@@ -377,7 +378,6 @@
       cursor: pointer;
     }
 
-    /* Compact Meal Detail controls */
     .detail-top-actions {
       display: flex;
       align-items: center;
@@ -505,13 +505,31 @@
       box-shadow: 0 20px 45px rgba(0, 0, 0, 0.25);
     }
 
+    .video-box {
+      position: relative;
+      margin: 10px 0;
+    }
+
     video {
       width: 100%;
       max-height: 220px;
       border-radius: 12px;
       background: #111;
       object-fit: cover;
-      margin: 10px 0;
+      display: block;
+    }
+
+    .scan-reticle {
+      position: absolute;
+      left: 12%;
+      right: 12%;
+      top: 50%;
+      height: 54px;
+      transform: translateY(-50%);
+      border: 2px solid #8CE0A8;
+      border-radius: 10px;
+      box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.25);
+      pointer-events: none;
     }
 
     .med-row {
@@ -747,10 +765,14 @@
       <p id="scannerStatus" style="font-size:12px;color:var(--muted);margin-top:6px;">
         Requesting rear camera access...
       </p>
-      <video id="cameraPreview" autoplay playsinline muted></video>
+      <div class="video-box">
+        <video id="cameraPreview" autoplay playsinline muted></video>
+        <div class="scan-reticle"></div>
+      </div>
       <div class="stack-gap">
-        <input id="barcodeInput" class="input" placeholder="Enter UPC barcode (e.g. 041190012345)" />
-        <button class="btn btn-primary" onclick="lookupBarcode()">Look Up &amp; Add Item</button>
+        <input id="barcodeInput" class="input" placeholder="Detected or typed UPC/EAN code" />
+        <input id="scannedNameInput" class="input" placeholder="Item name (auto-fills if found, or type yours)" />
+        <button class="btn btn-primary" onclick="confirmScannedOrManualBarcode()">Add Scanned Item to Pantry</button>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <button class="chip" onclick="quickScanDemo('Carrots', 'Produce', '1 bag', 'expiring', '🥕')">Sample: Carrots</button>
           <button class="chip" onclick="quickScanDemo('Eggs', 'Dairy', '6 count', 'soon', '🥚')">Sample: Eggs</button>
@@ -921,7 +943,11 @@
       feedback: {},
       savedMeals: {},
       activeDetailMeal: null,
-      cameraStream: null
+      cameraStream: null,
+      scanActive: false,
+      scanFrameId: null,
+      zxingReader: null,
+      lastDetectedCode: ''
     };
 
     const LANG_LABELS = {
@@ -1015,14 +1041,86 @@
       renderPantry();
     }
 
+    async function lookupProductName(code) {
+      const nameInput = document.getElementById('scannedNameInput');
+      const status = document.getElementById('scannerStatus');
+      try {
+        const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json`);
+        if (res.ok) {
+          const data = await res.json();
+          const productName = data && data.product && (data.product.product_name || data.product.product_name_en);
+          if (productName && !nameInput.value.trim()) {
+            nameInput.value = productName.trim();
+            status.textContent = `Detected ${code}: found "${productName.trim()}". Tap Add or edit name.`;
+            return;
+          }
+        }
+      } catch (_) {}
+      if (!nameInput.value.trim()) {
+        status.textContent = `Detected ${code}. Type an item name below and tap Add.`;
+      }
+    }
+
+    function handleDetectedBarcode(rawCode) {
+      const code = String(rawCode || '').trim();
+      if (!code || code === state.lastDetectedCode) return;
+      state.lastDetectedCode = code;
+      document.getElementById('barcodeInput').value = code;
+      if (navigator.vibrate) navigator.vibrate(80);
+      lookupProductName(code);
+    }
+
+    async function startBarcodeDetectionLoop(video) {
+      state.scanActive = true;
+      state.lastDetectedCode = '';
+
+      if ('BarcodeDetector' in window) {
+        try {
+          const detector = new BarcodeDetector({
+            formats: ['upc_a', 'upc_e', 'ean_13', 'ean_8', 'code_128']
+          });
+          const tick = async () => {
+            if (!state.scanActive) return;
+            if (video.readyState >= 2) {
+              try {
+                const barcodes = await detector.detect(video);
+                if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+                  handleDetectedBarcode(barcodes[0].rawValue);
+                }
+              } catch (_) {}
+            }
+            state.scanFrameId = requestAnimationFrame(tick);
+          };
+          state.scanFrameId = requestAnimationFrame(tick);
+          return;
+        } catch (_) {}
+      }
+
+      if (window.ZXing && window.ZXing.BrowserMultiFormatReader) {
+        try {
+          const reader = new window.ZXing.BrowserMultiFormatReader();
+          state.zxingReader = reader;
+          reader.decodeFromVideoElementContinuously(video, (result) => {
+            if (state.scanActive && result && result.getText) {
+              handleDetectedBarcode(result.getText());
+            }
+          });
+        } catch (_) {}
+      }
+    }
+
     async function openScanner() {
+      document.getElementById('barcodeInput').value = '';
+      document.getElementById('scannedNameInput').value = '';
       document.getElementById('scannerModal').classList.add('open');
       const status = document.getElementById('scannerStatus');
       const video = document.getElementById('cameraPreview');
+
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        status.textContent = 'Camera API unavailable on this browser; use sample or manual UPC below.';
+        status.textContent = 'Camera API unavailable on this browser; type a UPC or pick a sample below.';
         return;
       }
+
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: { ideal: 'environment' } },
@@ -1030,13 +1128,24 @@
         });
         state.cameraStream = stream;
         video.srcObject = stream;
-        status.textContent = 'Rear camera active. Point at a barcode or enter/pick a UPC below.';
+        await video.play().catch(() => {});
+        status.textContent = 'Rear camera active — hold a UPC/EAN barcode inside the green box.';
+        startBarcodeDetectionLoop(video);
       } catch (err) {
-        status.textContent = 'Camera permission blocked or unavailable; use sample or manual UPC below.';
+        status.textContent = 'Camera permission blocked or unavailable; type a UPC or pick a sample below.';
       }
     }
 
     function closeScanner() {
+      state.scanActive = false;
+      if (state.scanFrameId) {
+        cancelAnimationFrame(state.scanFrameId);
+        state.scanFrameId = null;
+      }
+      if (state.zxingReader) {
+        try { state.zxingReader.reset(); } catch (_) {}
+        state.zxingReader = null;
+      }
       if (state.cameraStream) {
         state.cameraStream.getTracks().forEach(t => t.stop());
         state.cameraStream = null;
@@ -1058,11 +1167,12 @@
       renderPantry();
     }
 
-    function lookupBarcode() {
+    function confirmScannedOrManualBarcode() {
       const code = document.getElementById('barcodeInput').value.trim();
-      if (!code) return;
-      quickScanDemo(`UPC ${code.slice(-6)}`, 'Pantry', '1 item', 'fresh', '📦');
-      document.getElementById('barcodeInput').value = '';
+      const customName = document.getElementById('scannedNameInput').value.trim();
+      if (!code && !customName) return;
+      const finalName = customName || `UPC ${code.slice(-6)}`;
+      quickScanDemo(finalName, 'Pantry', '1 item', 'fresh', '📦');
     }
 
     function renderRules() {
@@ -1338,29 +1448,4 @@
       document.getElementById('detailRecipeLink').href = `https://www.google.com/search?q=${query}`;
     }
 
-    function toggleCookedCurrentMeal() {
-      if (!state.activeDetailMeal) return;
-      toggleCookedByKey(state.activeDetailMeal.key);
-    }
-
-    function toggleSaveMeal() {
-      if (!state.activeDetailMeal) return;
-      const id = state.activeDetailMeal.recipe.id;
-      state.savedMeals[id] = !state.savedMeals[id];
-      renderMealDetail();
-    }
-
-    function setMealFeedback(val) {
-      if (!state.activeDetailMeal) return;
-      const id = state.activeDetailMeal.recipe.id;
-      state.feedback[id] = state.feedback[id] === val ? null : val;
-      renderMealDetail();
-      renderMenuCards();
-    }
-
-    renderPantry();
-    renderRules();
-    generateWeeklyMenu();
-  </script>
-</body>
-</html>
+    function toggle
