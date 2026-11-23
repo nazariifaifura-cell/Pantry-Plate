@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>pantry & plate</title>
+  <style>
+    :root {
+      --bg: #FAF9F6;
+      --card: #FFFFFF;
+      --ink: #1D2620;
+      --muted: #5F6E64;
+      --green: #3B6249;
+      --green-dark: #2C4B37;
+      --green-soft: #EBF2ED;
+      --border: #E5E7E2;
+      --danger-bg: #FDECEC;
+      --danger-ink: #A62B2B;
+      --warn-bg: #FFF6DF;
+      --warn-ink: #8F6408;
+      --ok-bg: #E8F4EC;
+      --ok-ink: #2A613E;
+      --shadow: 0 6px 20px rgba(29, 38, 32, 0.05);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #ECEAE3;
+      color: var(--ink);
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    .phone-frame {
+      width: 100%;
+      max-width: 430px;
+      min-height: 100vh;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.12);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px 10px;
+      background: var(--bg);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      border-bottom: 1px solid rgba(229, 231, 226, 0.65);
+    }
+
+    .brand-mini {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: -0.01em;
+    }
+
+    .leaf-badge {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--green-soft);
+      color: var(--green);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .lang-pill {
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .screen {
+      flex: 1;
+      padding: 14px 18px 92px;
+      display: none;
+    }
+
+    .screen.active { display: block; }
+
+    h1, h2, h3, p { margin: 0; }
+
+    .screen-title {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 4px;
+    }
+
+    .screen-sub {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px;
+      box-shadow: var(--shadow);
+      margin-bottom: 12px;
+    }
+
+    .btn {
+      width: 100%;
+      border: none;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: transform 0.06s ease, background 0.15s ease;
+    }
+
+    .btn:active { transform: scale(0.99); }
+
+    .btn-primary {
+      background: var(--green);
+      color: #FFFFFF;
+    }
+
+    .btn-primary:hover { background: var(--green-dark); }
+
+    .btn-secondary {
+      background: var(--card);
+      color: var(--ink);
+      border: 1px solid var(--border);
+    }
+
+    .btn-soft {
+      background: var(--green-soft);
+      color: var(--green);
+    }
+
+    .btn-sm {
+      width: auto;
+      padding: 7px 11px;
+      font-size: 12px;
+      border-radius: 999px;
+    }
+
+    .stack-gap > * + * { margin-top: 8px; }
+
+    .input, select {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--ink);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 14px;
+    }
+
+    .search-box { margin-bottom: 10px; }
+
+    .pantry-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .pantry-left {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      min-width: 0;
+    }
+
+    .item-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 11px;
+      background: var(--green-soft);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .item-name-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .item-name {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .item-meta {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+
+    .badge-expiring { background: var(--danger-bg); color: var(--danger-ink); }
+    .badge-soon { background: var(--warn-bg); color: var(--warn-ink); }
+    .badge-fresh { background: var(--ok-bg); color: var(--ok-ink); }
+    .badge-need { background: #EEF2FF; color: #37419C; }
+
+    .check-circle {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 1.5px solid #C8CFC9;
+      background: #FFFFFF;
+      color: #FFFFFF;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .check-circle.done {
+      background: var(--green);
+      border-color: var(--green);
+    }
+
+    .days-row {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+      margin: 10px 0 14px;
+    }
+
+    .day-pill {
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 7px 0;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .day-pill.active {
+      background: var(--green);
+      color: #FFFFFF;
+      border-color: var(--green);
+    }
+
+    .chip-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-top: 8px;
+    }
+
+    .chip {
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 6px 11px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .chip.selected {
+      background: var(--green-soft);
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    .mode-switch {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .mode-btn {
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--muted);
+      border-radius: 12px;
+      padding: 9px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .mode-btn.active {
+      background: var(--green-soft);
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    .meal-slot-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 6px;
+      display: inline-block;
+      margin-bottom: 6px;
+    }
+
+    .slot-breakfast { background: var(--warn-bg); color: var(--warn-ink); }
+    .slot-lunch { background: var(--ok-bg); color: var(--ok-ink); }
+    .slot-dinner { background: #EAEFFB; color: #32448C; }
+
+    .meal-title {
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      cursor: pointer;
+    }
+
+    .safety-note {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    .cooked-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid var(--border);
+      margin-top: 10px;
+      padding-top: 10px;
+      font-size: 12px;
+    }
+
+    .cooked-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Compact Meal Detail controls */
+    .detail-top-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .compact-feedback-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .compact-feedback-btn {
+      flex: 1;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--ink);
+      border-radius: 10px;
+      padding: 7px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .compact-feedback-btn.active-like {
+      background: var(--ok-bg);
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    .compact-feedback-btn.active-dislike {
+      background: var(--danger-bg);
+      border-color: var(--danger-ink);
+      color: var(--danger-ink);
+    }
+
+    .step-item {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .step-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--green-soft);
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .guide-link {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      text-decoration: none;
+      color: var(--ink);
+      border: 1px solid var(--border);
+      background: var(--bg);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-top: 8px;
+    }
+
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      max-width: 430px;
+      background: var(--card);
+      border-top: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      padding: 8px 0 10px;
+      z-index: 20;
+    }
+
+    .nav-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      cursor: pointer;
+    }
+
+    .nav-btn.active { color: var(--green); }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(17, 24, 20, 0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      z-index: 40;
+    }
+
+    .modal-backdrop.open { display: flex; }
+
+    .modal-card {
+      width: 100%;
+      max-width: 390px;
+      background: var(--card);
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.25);
+    }
+
+    video {
+      width: 100%;
+      max-height: 220px;
+      border-radius: 12px;
+      background: #111;
+      object-fit: cover;
+      margin: 10px 0;
+    }
+
+    .med-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .med-row:last-child { border-bottom: none; }
+
+    .link-btn {
+      background: none;
+      border: none;
+      color: var(--danger-ink);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .welcome-hero {
+      text-align: center;
+      padding: 24px 8px 16px;
+    }
+
+    .welcome-logo {
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      background: var(--green-soft);
+      color: var(--green);
+      font-size: 26px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="phone-frame">
+    <div class="topbar">
+      <div class="brand-mini" onclick="showScreen('welcome')" style="cursor:pointer;">
+        <span class="leaf-badge">🍃</span>
+        <span>pantry &amp; plate</span>
+      </div>
+      <select id="topLangSelect" class="lang-pill" aria-label="Language" onchange="setLanguage(this.value)">
+        <option value="en">English</option>
+        <option value="fr">Français</option>
+        <option value="es">Español</option>
+        <option value="uk">Українська</option>
+        <option value="ru">Русский</option>
+      </select>
+    </div>
+
+    <!-- 1. WELCOME -->
+    <section id="screen-welcome" class="screen active">
+      <div class="welcome-hero">
+        <div class="welcome-logo">🍃</div>
+        <h1 style="font-size:26px;">pantry &amp; plate</h1>
+        <p class="screen-sub" style="margin-top:6px;">Safe meals from what you have. Less waste, fewer conflicts.</p>
+      </div>
+
+      <div class="card stack-gap">
+        <label style="font-size:12px;font-weight:700;color:var(--muted);">PREFERRED LANGUAGE</label>
+        <select id="welcomeLangSelect" onchange="setLanguage(this.value)">
+          <option value="en">English (US / CA)</option>
+          <option value="fr">Français</option>
+          <option value="es">Español</option>
+          <option value="uk">Українська</option>
+          <option value="ru">Русский</option>
+        </select>
+        <p style="font-size:12px;color:var(--muted);">UI labels, recipe guides, and video search links follow this choice.</p>
+      </div>
+
+      <div class="stack-gap" style="margin-top:14px;">
+        <button class="btn btn-primary" onclick="showScreen('pantry')">Sign In &amp; Open Pantry</button>
+        <button class="btn btn-secondary" onclick="showScreen('pantry')">Create Household Account</button>
+      </div>
+    </section>
+
+    <!-- 2. PANTRY -->
+    <section id="screen-pantry" class="screen">
+      <h1 class="screen-title">My Pantry</h1>
+      <p class="screen-sub" id="pantryCountSub">0 items tracked</p>
+
+      <input id="pantrySearch" class="input search-box" placeholder="Search your pantry..." oninput="renderPantry()" />
+
+      <div class="stack-gap" style="margin-bottom:14px;">
+        <button class="btn btn-primary" onclick="openScanner()">📷 Scan UPC Barcode</button>
+        <button class="btn btn-secondary" onclick="openManualAdd()">+ Add Manually</button>
+      </div>
+
+      <div id="pantryList" class="stack-gap"></div>
+    </section>
+
+    <!-- 3. RULES & SAFETY -->
+    <section id="screen-rules" class="screen">
+      <h1 class="screen-title">Rules &amp; safety</h1>
+      <p class="screen-sub">Medication schedules, food allergies &amp; preferences</p>
+
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <h3 style="font-size:15px;">💊 Meds &amp; allergies</h3>
+          <span style="font-size:11px;color:var(--muted);">Tap active days</span>
+        </div>
+
+        <div class="days-row" id="medDaysRow"></div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+          <span style="font-size:11px;font-weight:700;color:var(--muted);">YOUR MEDICATIONS</span>
+          <button class="btn btn-soft btn-sm" onclick="openAddMed()">+ Add medication</button>
+        </div>
+        <div id="medList" style="margin-top:6px;"></div>
+
+        <hr style="border:none;border-top:1px solid var(--border);margin:12px 0;" />
+
+        <span style="font-size:11px;font-weight:700;color:var(--muted);">ALLERGIES &amp; SENSITIVITIES</span>
+        <div class="chip-wrap" id="allergyChips"></div>
+      </div>
+
+      <div class="card">
+        <h3 style="font-size:15px;margin-bottom:8px;">🍽️ Meal preferences</h3>
+        <div id="prefGroups" class="stack-gap"></div>
+      </div>
+
+      <div class="card" style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:12px;color:var(--muted);">Language</div>
+          <div id="rulesLangLabel" style="font-size:14px;font-weight:600;">English</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="showScreen('welcome')">Change</button>
+      </div>
+    </section>
+
+    <!-- 4. WEEKLY MENU -->
+    <section id="screen-menu" class="screen">
+      <h1 class="screen-title">Weekly Menu</h1>
+      <p class="screen-sub">Tailored to pantry stock, expiry &amp; safety rules</p>
+
+      <div class="mode-switch">
+        <button id="modeStrictBtn" class="mode-btn active" onclick="setGenerationMode('strict')">
+          Strict Pantry Only
+        </button>
+        <button id="modeFlexibleBtn" class="mode-btn" onclick="setGenerationMode('flexible')">
+          Pantry + AI Ideas
+        </button>
+      </div>
+
+      <button class="btn btn-primary" style="margin-bottom:12px;" onclick="generateWeeklyMenu()">
+        ✨ Generate Weekly Menu
+      </button>
+
+      <div class="days-row" id="menuDaysRow"></div>
+      <div id="menuCards" class="stack-gap"></div>
+    </section>
+
+    <!-- 5. MEAL DETAIL -->
+    <section id="screen-detail" class="screen">
+      <div class="detail-top-actions">
+        <button class="btn btn-secondary btn-sm" onclick="showScreen('menu')">← Back to Menu</button>
+        <button id="detailSaveBtn" class="btn btn-soft btn-sm" onclick="toggleSaveMeal()">🔖 Save for later</button>
+      </div>
+
+      <div class="card">
+        <span id="detailSlotBadge" class="meal-slot-label slot-lunch">LUNCH • MON</span>
+        <h2 id="detailTitle" style="font-size:21px;margin-bottom:6px;"></h2>
+        <p id="detailMeta" style="font-size:12px;color:var(--muted);margin-bottom:12px;"></p>
+
+        <button id="detailCookBtn" class="btn btn-primary" onclick="toggleCookedCurrentMeal()">
+          ✓ Mark as Cooked
+        </button>
+        <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px;">
+          Pantry quantities update only when marked cooked
+        </p>
+
+        <div class="compact-feedback-row">
+          <button id="btnLike" class="compact-feedback-btn" onclick="setMealFeedback('like')">👍 Liked it</button>
+          <button id="btnDislike" class="compact-feedback-btn" onclick="setMealFeedback('dislike')">👎 Not for me</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="font-size:14px;margin-bottom:8px;">Ingredients</h3>
+        <div id="detailIngredients" class="stack-gap"></div>
+      </div>
+
+      <div class="card">
+        <h3 style="font-size:14px;margin-bottom:10px;">Cooking Steps</h3>
+        <div id="detailSteps"></div>
+      </div>
+
+      <div class="card">
+        <h3 style="font-size:14px;margin-bottom:4px;">Second Opinion &amp; Guides</h3>
+        <p id="detailLangHint" style="font-size:12px;color:var(--muted);"></p>
+        <a id="detailVideoLink" class="guide-link" href="#" target="_blank" rel="noopener noreferrer">
+          <span>▶ Watch video tutorial</span>
+          <span>↗</span>
+        </a>
+        <a id="detailRecipeLink" class="guide-link" href="#" target="_blank" rel="noopener noreferrer">
+          <span>📖 Read full recipe</span>
+          <span>↗</span>
+        </a>
+      </div>
+    </section>
+
+    <!-- BOTTOM NAV -->
+    <nav class="bottom-nav">
+      <button id="nav-pantry" class="nav-btn active" onclick="showScreen('pantry')">
+        <span>🧺</span>
+        <span>Pantry</span>
+      </button>
+      <button id="nav-rules" class="nav-btn" onclick="showScreen('rules')">
+        <span>🛡️</span>
+        <span>Rules</span>
+      </button>
+      <button id="nav-menu" class="nav-btn" onclick="showScreen('menu')">
+        <span>📅</span>
+        <span>Menu</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- SCANNER MODAL -->
+  <div id="scannerModal" class="modal-backdrop">
+    <div class="modal-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h3 style="font-size:16px;">Scan UPC Barcode</h3>
+        <button class="link-btn" onclick="closeScanner()">Close</button>
+      </div>
+      <p id="scannerStatus" style="font-size:12px;color:var(--muted);margin-top:6px;">
+        Requesting rear camera access...
+      </p>
+      <video id="cameraPreview" autoplay playsinline muted></video>
+      <div class="stack-gap">
+        <input id="barcodeInput" class="input" placeholder="Enter UPC barcode (e.g. 041190012345)" />
+        <button class="btn btn-primary" onclick="lookupBarcode()">Look Up &amp; Add Item</button>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="chip" onclick="quickScanDemo('Carrots', 'Produce', '1 bag', 'expiring', '🥕')">Sample: Carrots</button>
+          <button class="chip" onclick="quickScanDemo('Eggs', 'Dairy', '6 count', 'soon', '🥚')">Sample: Eggs</button>
+          <button class="chip" onclick="quickScanDemo('Salmon Fillet', 'Protein', '250g', 'expiring', '🐟')">Sample: Salmon</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MANUAL ADD MODAL -->
+  <div id="manualModal" class="modal-backdrop">
+    <div class="modal-card stack-gap">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h3 style="font-size:16px;">Add Pantry Item</h3>
+        <button class="link-btn" onclick="closeManualAdd()">Close</button>
+      </div>
+      <input id="newItemName" class="input" placeholder="Item name (e.g. Brown Rice)" />
+      <input id="newItemQty" class="input" placeholder="Quantity (e.g. 500g or 1 bag)" />
+      <select id="newItemCategory">
+        <option value="Produce">Produce</option>
+        <option value="Protein">Protein</option>
+        <option value="Dairy">Dairy</option>
+        <option value="Grains">Grains</option>
+        <option value="Pantry">Pantry</option>
+      </select>
+      <select id="newItemExpiry">
+        <option value="fresh">Fresh</option>
+        <option value="soon">Use soon (3 days)</option>
+        <option value="expiring">Expiring soon</option>
+      </select>
+      <button class="btn btn-primary" onclick="saveManualItem()">Save to Pantry</button>
+    </div>
+  </div>
+
+  <!-- ADD MED MODAL -->
+  <div id="medModal" class="modal-backdrop">
+    <div class="modal-card stack-gap">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h3 style="font-size:16px;">Add Medication Rule</h3>
+        <button class="link-btn" onclick="closeAddMed()">Close</button>
+      </div>
+      <input id="newMedName" class="input" placeholder="Medication name (e.g. Morning med)" />
+      <input id="newMedSchedule" class="input" placeholder="Schedule (e.g. Daily morning)" />
+      <select id="newMedAvoid">
+        <option value="none">No food restriction</option>
+        <option value="dairy">Avoid dairy</option>
+        <option value="grapefruit">Avoid grapefruit</option>
+      </select>
+      <button class="btn btn-primary" onclick="saveMedRule()">Save Medication</button>
+    </div>
+  </div>
+
+  <script>
+    const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const ALLERGIES = ['Peanuts', 'Tree nuts', 'Dairy', 'Eggs', 'Gluten', 'Shellfish'];
+    const PREF_OPTIONS = {
+      Breakfast: ['Balanced', 'Quick', 'High protein'],
+      Lunch: ['Balanced', 'Quick & savory', 'Light'],
+      Dinner: ['Balanced', 'Quick', 'High protein']
+    };
+
+    const RECIPES = [
+      {
+        id: 'salmon-rice-bowl',
+        slot: 'Lunch',
+        title: 'Salmon Rice Bowl',
+        prep: '10 min prep',
+        cook: '15 min cook',
+        ingredients: ['Salmon Fillet', 'Brown Rice', 'Carrots'],
+        extraNeeded: [],
+        allergens: [],
+        avoids: [],
+        steps: [
+          'Rinse brown rice and simmer in salted water until tender; drain.',
+          'Slice carrots thinly and lightly pan-sear or steam until crisp-tender.',
+          'Pan-sear salmon fillet for 3–4 minutes per side until cooked through.',
+          'Serve salmon and carrots over warm brown rice.'
+        ]
+      },
+      {
+        id: 'carrot-oat-porridge',
+        slot: 'Breakfast',
+        title: 'Savory Carrot & Oat Bowl',
+        prep: '5 min prep',
+        cook: '10 min cook',
+        ingredients: ['Rolled Oats', 'Carrots', 'Eggs'],
+        extraNeeded: [],
+        allergens: ['Eggs', 'Gluten'],
+        avoids: [],
+        steps: [
+          'Grate carrots finely and simmer with oats and water or broth.',
+          'Stir in a whisked egg gently over low heat until creamy.',
+          'Season lightly with salt and herbs before serving.'
+        ]
+      },
+      {
+        id: 'garlic-herb-chicken-rice',
+        slot: 'Dinner',
+        title: 'Garlic Herb Chicken & Rice',
+        prep: '10 min prep',
+        cook: '20 min cook',
+        ingredients: ['Chicken Breast', 'Brown Rice', 'Spinach'],
+        extraNeeded: [],
+        allergens: [],
+        avoids: [],
+        steps: [
+          'Cook brown rice until fluffy.',
+          'Season chicken breast with salt, garlic, and herbs; sear until golden and cooked through.',
+          'Wilt fresh spinach in the pan for 1 minute and serve alongside rice.'
+        ]
+      },
+      {
+        id: 'yogurt-berry-oats',
+        slot: 'Breakfast',
+        title: 'Creamy Yogurt & Oat Cup',
+        prep: '5 min prep',
+        cook: '0 min cook',
+        ingredients: ['Rolled Oats', 'Greek Yogurt'],
+        extraNeeded: ['Berries'],
+        allergens: ['Dairy', 'Gluten'],
+        avoids: ['dairy'],
+        steps: [
+          'Combine rolled oats and Greek yogurt in a bowl.',
+          'Top with berries or sliced fruit and chill for 10 minutes.'
+        ]
+      },
+      {
+        id: 'veggie-egg-scramble',
+        slot: 'Lunch',
+        title: 'Garden Egg & Spinach Scramble',
+        prep: '5 min prep',
+        cook: '8 min cook',
+        ingredients: ['Eggs', 'Spinach'],
+        extraNeeded: ['Whole-grain toast'],
+        allergens: ['Eggs'],
+        avoids: [],
+        steps: [
+          'Wilt spinach in a lightly oiled skillet over medium heat.',
+          'Pour in beaten eggs and stir gently until softly set.'
+        ]
+      }
+    ];
+
+    const state = {
+      lang: 'en',
+      pantry: [
+        { id: '1', name: 'Carrots', category: 'Produce', qty: '1 bag', expiry: 'expiring', icon: '🥕', used: false },
+        { id: '2', name: 'Eggs', category: 'Dairy', qty: '6 count', expiry: 'soon', icon: '🥚', used: false },
+        { id: '3', name: 'Salmon Fillet', category: 'Protein', qty: '250g', expiry: 'expiring', icon: '🐟', used: false },
+        { id: '4', name: 'Brown Rice', category: 'Grains', qty: '1 kg', expiry: 'fresh', icon: '🌾', used: false },
+        { id: '5', name: 'Rolled Oats', category: 'Grains', qty: '750g', expiry: 'fresh', icon: '🥣', used: false },
+        { id: '6', name: 'Spinach', category: 'Produce', qty: '150g', expiry: 'soon', icon: '🥬', used: false }
+      ],
+      medDays: ['Mon', 'Wed', 'Fri'],
+      meds: [
+        { id: 'm1', name: 'Morning med', schedule: 'Mon, Wed, Fri • Morning', avoid: 'dairy' }
+      ],
+      allergies: ['Peanuts'],
+      prefs: {
+        Breakfast: 'Balanced',
+        Lunch: 'Quick & savory',
+        Dinner: 'Balanced'
+      },
+      generationMode: 'strict',
+      selectedMenuDay: 'Mon',
+      weeklyMenu: {},
+      cookedMeals: {},
+      feedback: {},
+      savedMeals: {},
+      activeDetailMeal: null,
+      cameraStream: null
+    };
+
+    const LANG_LABELS = {
+      en: 'English',
+      fr: 'Français',
+      es: 'Español',
+      uk: 'Українська',
+      ru: 'Русский'
+    };
+
+    function setLanguage(lang) {
+      state.lang = lang;
+      document.getElementById('topLangSelect').value = lang;
+      document.getElementById('welcomeLangSelect').value = lang;
+      document.getElementById('rulesLangLabel').textContent = LANG_LABELS[lang] || 'English';
+      if (state.activeDetailMeal) renderMealDetail();
+    }
+
+    function showScreen(name) {
+      document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+      document.getElementById(`screen-${name}`).classList.add('active');
+      document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+      const navMap = { pantry: 'nav-pantry', rules: 'nav-rules', menu: 'nav-menu', detail: 'nav-menu' };
+      if (navMap[name]) document.getElementById(navMap[name]).classList.add('active');
+    }
+
+    function expiryBadge(expiry) {
+      if (expiry === 'expiring') return '<span class="badge badge-expiring">Expiring soon</span>';
+      if (expiry === 'soon') return '<span class="badge badge-soon">Use soon</span>';
+      return '<span class="badge badge-fresh">Fresh</span>';
+    }
+
+    function renderPantry() {
+      const q = (document.getElementById('pantrySearch').value || '').toLowerCase().trim();
+      const filtered = state.pantry.filter(i =>
+        i.name.toLowerCase().includes(q) || i.category.toLowerCase().includes(q)
+      );
+      document.getElementById('pantryCountSub').textContent = `${state.pantry.length} items tracked`;
+      const list = document.getElementById('pantryList');
+      list.innerHTML = filtered.map(item => `
+        <div class="card pantry-item" style="opacity:${item.used ? '0.55' : '1'}">
+          <div class="pantry-left">
+            <div class="item-icon">${item.icon || '🥫'}</div>
+            <div>
+              <div class="item-name-row">
+                <span class="item-name" style="text-decoration:${item.used ? 'line-through' : 'none'}">${item.name}</span>
+                ${expiryBadge(item.expiry)}
+              </div>
+              <div class="item-meta">${item.category} • ${item.qty}</div>
+            </div>
+          </div>
+          <button class="check-circle ${item.used ? 'done' : ''}" onclick="togglePantryItem('${item.id}')" title="Mark used">✓</button>
+        </div>
+      `).join('') || '<div class="card"><p class="screen-sub" style="margin:0;">No matching pantry items.</p></div>';
+    }
+
+    function togglePantryItem(id) {
+      const item = state.pantry.find(x => x.id === id);
+      if (!item) return;
+      item.used = !item.used;
+      renderPantry();
+    }
+
+    function openManualAdd() {
+      document.getElementById('manualModal').classList.add('open');
+    }
+
+    function closeManualAdd() {
+      document.getElementById('manualModal').classList.remove('open');
+    }
+
+    function saveManualItem() {
+      const name = document.getElementById('newItemName').value.trim();
+      if (!name) return;
+      const qty = document.getElementById('newItemQty').value.trim() || '1 unit';
+      const category = document.getElementById('newItemCategory').value;
+      const expiry = document.getElementById('newItemExpiry').value;
+      const icons = { Produce: '🥦', Protein: '🍗', Dairy: '🥛', Grains: '🌾', Pantry: '🫙' };
+      state.pantry.unshift({
+        id: String(Date.now()),
+        name,
+        category,
+        qty,
+        expiry,
+        icon: icons[category] || '🥫',
+        used: false
+      });
+      document.getElementById('newItemName').value = '';
+      document.getElementById('newItemQty').value = '';
+      closeManualAdd();
+      renderPantry();
+    }
+
+    async function openScanner() {
+      document.getElementById('scannerModal').classList.add('open');
+      const status = document.getElementById('scannerStatus');
+      const video = document.getElementById('cameraPreview');
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        status.textContent = 'Camera API unavailable on this browser; use sample or manual UPC below.';
+        return;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+          audio: false
+        });
+        state.cameraStream = stream;
+        video.srcObject = stream;
+        status.textContent = 'Rear camera active. Point at a barcode or enter/pick a UPC below.';
+      } catch (err) {
+        status.textContent = 'Camera permission blocked or unavailable; use sample or manual UPC below.';
+      }
+    }
+
+    function closeScanner() {
+      if (state.cameraStream) {
+        state.cameraStream.getTracks().forEach(t => t.stop());
+        state.cameraStream = null;
+      }
+      document.getElementById('scannerModal').classList.remove('open');
+    }
+
+    function quickScanDemo(name, category, qty, expiry, icon) {
+      state.pantry.unshift({
+        id: String(Date.now()),
+        name,
+        category,
+        qty,
+        expiry,
+        icon,
+        used: false
+      });
+      closeScanner();
+      renderPantry();
+    }
+
+    function lookupBarcode() {
+      const code = document.getElementById('barcodeInput').value.trim();
+      if (!code) return;
+      quickScanDemo(`UPC ${code.slice(-6)}`, 'Pantry', '1 item', 'fresh', '📦');
+      document.getElementById('barcodeInput').value = '';
+    }
+
+    function renderRules() {
+      const daysRow = document.getElementById('medDaysRow');
+      daysRow.innerHTML = DAYS.map(d => {
+        const active = state.medDays.includes(d);
+        return `<button class="day-pill ${active ? 'active' : ''}" onclick="toggleMedDay('${d}')">${d}</button>`;
+      }).join('');
+
+      const medList = document.getElementById('medList');
+      medList.innerHTML = state.meds.map(m => `
+        <div class="med-row">
+          <div>
+            <div style="font-size:13px;font-weight:600;">${m.name}</div>
+            <div style="font-size:12px;color:var(--muted);">${m.schedule}${m.avoid !== 'none' ? ` • Avoid ${m.avoid}` : ''}</div>
+          </div>
+          <button class="link-btn" onclick="removeMed('${m.id}')">Remove</button>
+        </div>
+      `).join('') || '<p style="font-size:12px;color:var(--muted);padding:8px 0;">No medications added.</p>';
+
+      const chips = document.getElementById('allergyChips');
+      chips.innerHTML = ALLERGIES.map(a => {
+        const sel = state.allergies.includes(a);
+        return `<button class="chip ${sel ? 'selected' : ''}" onclick="toggleAllergy('${a}')">${sel ? '✓ ' : ''}${a}</button>`;
+      }).join('');
+
+      const prefGroups = document.getElementById('prefGroups');
+      prefGroups.innerHTML = Object.keys(PREF_OPTIONS).map(slot => `
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;">${slot}</div>
+          <div class="chip-wrap">
+            ${PREF_OPTIONS[slot].map(opt => {
+              const active = state.prefs[slot] === opt;
+              return `<button class="chip ${active ? 'selected' : ''}" onclick="setPref('${slot}','${opt}')">${opt}</button>`;
+            }).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function toggleMedDay(day) {
+      if (state.medDays.includes(day)) {
+        state.medDays = state.medDays.filter(d => d !== day);
+      } else {
+        state.medDays.push(day);
+      }
+      renderRules();
+    }
+
+    function openAddMed() { document.getElementById('medModal').classList.add('open'); }
+    function closeAddMed() { document.getElementById('medModal').classList.remove('open'); }
+
+    function saveMedRule() {
+      const name = document.getElementById('newMedName').value.trim();
+      if (!name) return;
+      const schedule = document.getElementById('newMedSchedule').value.trim() || 'Daily';
+      const avoid = document.getElementById('newMedAvoid').value;
+      state.meds.push({ id: String(Date.now()), name, schedule, avoid });
+      document.getElementById('newMedName').value = '';
+      document.getElementById('newMedSchedule').value = '';
+      closeAddMed();
+      renderRules();
+    }
+
+    function removeMed(id) {
+      state.meds = state.meds.filter(m => m.id !== id);
+      renderRules();
+    }
+
+    function toggleAllergy(allergy) {
+      if (state.allergies.includes(allergy)) {
+        state.allergies = state.allergies.filter(a => a !== allergy);
+      } else {
+        state.allergies.push(allergy);
+      }
+      renderRules();
+    }
+
+    function setPref(slot, opt) {
+      state.prefs[slot] = opt;
+      renderRules();
+    }
+
+    function setGenerationMode(mode) {
+      state.generationMode = mode;
+      document.getElementById('modeStrictBtn').classList.toggle('active', mode === 'strict');
+      document.getElementById('modeFlexibleBtn').classList.toggle('active', mode === 'flexible');
+      generateWeeklyMenu();
+    }
+
+    function availablePantryNames() {
+      return state.pantry.filter(i => !i.used).map(i => i.name.toLowerCase());
+    }
+
+    function isMealSafeForDay(recipe, day) {
+      const hasAllergy = recipe.allergens.some(a => state.allergies.includes(a));
+      if (hasAllergy) return false;
+      const medActiveToday = state.medDays.includes(day);
+      if (medActiveToday) {
+        const avoidsDairy = state.meds.some(m => m.avoid === 'dairy');
+        if (avoidsDairy && recipe.avoids.includes('dairy')) return false;
+      }
+      return true;
+    }
+
+    function generateWeeklyMenu() {
+      const avail = availablePantryNames();
+      const slots = ['Breakfast', 'Lunch', 'Dinner'];
+      const nextMenu = {};
+
+      DAYS.forEach((day, idx) => {
+        nextMenu[day] = slots.map((slot, sIdx) => {
+          const safeCandidates = RECIPES.filter(r => r.slot === slot && isMealSafeForDay(r, day));
+          const pool = safeCandidates.length ? safeCandidates : RECIPES.filter(r => r.slot === slot);
+
+          let chosen = pool[(idx + sIdx) % pool.length];
+          if (state.generationMode === 'strict') {
+            const fullMatch = pool.find(r =>
+              r.ingredients.every(ing => avail.some(a => a.includes(ing.toLowerCase()) || ing.toLowerCase().includes(a)))
+            );
+            if (fullMatch) chosen = fullMatch;
+          } else {
+            const bestMatch = pool.find(r =>
+              r.ingredients.some(ing => avail.some(a => a.includes(ing.toLowerCase()) || ing.toLowerCase().includes(a)))
+            );
+            if (bestMatch) chosen = bestMatch;
+          }
+
+          const matched = chosen.ingredients.filter(ing =>
+            avail.some(a => a.includes(ing.toLowerCase()) || ing.toLowerCase().includes(a))
+          );
+          const missing = chosen.ingredients.filter(ing => !matched.includes(ing));
+          const extraItems = state.generationMode === 'flexible'
+            ? [...missing, ...chosen.extraNeeded]
+            : missing;
+
+          return {
+            key: `${day}-${slot}`,
+            day,
+            slot,
+            recipe: chosen,
+            matched,
+            extraItems
+          };
+        });
+      });
+
+      state.weeklyMenu = nextMenu;
+      renderMenuDays();
+      renderMenuCards();
+    }
+
+    function renderMenuDays() {
+      const row = document.getElementById('menuDaysRow');
+      row.innerHTML = DAYS.map(d => `
+        <button class="day-pill ${state.selectedMenuDay === d ? 'active' : ''}" onclick="selectMenuDay('${d}')">${d}</button>
+      `).join('');
+    }
+
+    function selectMenuDay(day) {
+      state.selectedMenuDay = day;
+      renderMenuDays();
+      renderMenuCards();
+    }
+
+    function renderMenuCards() {
+      const container = document.getElementById('menuCards');
+      const items = state.weeklyMenu[state.selectedMenuDay] || [];
+      container.innerHTML = items.map(entry => {
+        const isCooked = Boolean(state.cookedMeals[entry.key]);
+        const slotClass = entry.slot === 'Breakfast' ? 'slot-breakfast' : entry.slot === 'Lunch' ? 'slot-lunch' : 'slot-dinner';
+        const fb = state.feedback[entry.recipe.id];
+        const fbBadge = fb === 'like' ? ' • 👍 Liked' : fb === 'dislike' ? ' • 👎 Skipped' : '';
+
+        return `
+          <div class="card">
+            <span class="meal-slot-label ${slotClass}">${entry.slot.toUpperCase()} • ${entry.day.toUpperCase()}${fbBadge}</span>
+            <div class="meal-title" onclick="openMealDetail('${entry.key}')">${entry.recipe.title}</div>
+            <div class="chip-wrap" style="margin-top:4px;">
+              ${entry.matched.map(m => `<span class="badge badge-fresh">${m}</span>`).join('')}
+              ${entry.extraItems.map(x => `<span class="badge badge-need">+ Need: ${x}</span>`).join('')}
+            </div>
+            <p class="safety-note">
+              ✓ Matches ${state.allergies.length ? state.allergies.join(', ') + ' free' : 'allergy rules'}
+              ${state.medDays.includes(entry.day) ? ' • Med schedule active today' : ''}
+            </p>
+            <div class="cooked-bar">
+              <label class="cooked-toggle">
+                <input type="checkbox" ${isCooked ? 'checked' : ''} onchange="toggleCookedByKey('${entry.key}')" />
+                <span>Cooked</span>
+              </label>
+              <span style="color:var(--muted);">${isCooked ? 'Pantry updated ✓' : 'Deducts pantry items when checked'}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function findEntryByKey(key) {
+      for (const d of DAYS) {
+        const found = (state.weeklyMenu[d] || []).find(e => e.key === key);
+        if (found) return found;
+      }
+      return null;
+    }
+
+    function toggleCookedByKey(key) {
+      const entry = findEntryByKey(key);
+      if (!entry) return;
+      const nowCooked = !state.cookedMeals[key];
+      state.cookedMeals[key] = nowCooked;
+
+      entry.matched.forEach(ingName => {
+        const pantryItem = state.pantry.find(p => p.name.toLowerCase() === ingName.toLowerCase());
+        if (pantryItem) pantryItem.used = nowCooked;
+      });
+
+      renderPantry();
+      renderMenuCards();
+      if (state.activeDetailMeal && state.activeDetailMeal.key === key) {
+        renderMealDetail();
+      }
+    }
+
+    function openMealDetail(key) {
+      const entry = findEntryByKey(key);
+      if (!entry) return;
+      state.activeDetailMeal = entry;
+      renderMealDetail();
+      showScreen('detail');
+    }
+
+    function renderMealDetail() {
+      const entry = state.activeDetailMeal;
+      if (!entry) return;
+      const r = entry.recipe;
+      const isCooked = Boolean(state.cookedMeals[entry.key]);
+      const isSaved = Boolean(state.savedMeals[r.id]);
+      const fb = state.feedback[r.id];
+
+      document.getElementById('detailSlotBadge').textContent = `${entry.slot.toUpperCase()} • ${entry.day.toUpperCase()}`;
+      document.getElementById('detailTitle').textContent = r.title;
+      document.getElementById('detailMeta').textContent = `⏱ ${r.prep} • 🔥 ${r.cook}`;
+
+      const saveBtn = document.getElementById('detailSaveBtn');
+      saveBtn.textContent = isSaved ? '🔖 Saved' : '🔖 Save for later';
+
+      const cookBtn = document.getElementById('detailCookBtn');
+      cookBtn.textContent = isCooked ? '✓ Marked as Cooked (Pantry Updated)' : '✓ Mark as Cooked';
+
+      document.getElementById('btnLike').className = `compact-feedback-btn ${fb === 'like' ? 'active-like' : ''}`;
+      document.getElementById('btnDislike').className = `compact-feedback-btn ${fb === 'dislike' ? 'active-dislike' : ''}`;
+
+      document.getElementById('detailIngredients').innerHTML = r.ingredients.map(ing => {
+        const inPantry = entry.matched.includes(ing);
+        return `<div style="display:flex;justify-content:space-between;font-size:13px;">
+          <span>${ing}</span>
+          <span class="badge ${inPantry ? 'badge-fresh' : 'badge-need'}">${inPantry ? 'In pantry' : 'Need'}</span>
+        </div>`;
+      }).join('');
+
+      document.getElementById('detailSteps').innerHTML = r.steps.map((s, idx) => `
+        <div class="step-item">
+          <span class="step-num">${idx + 1}</span>
+          <span>${s}</span>
+        </div>
+      `).join('');
+
+      const langLabel = LANG_LABELS[state.lang] || 'English';
+      document.getElementById('detailLangHint').textContent = `Matched to your language: ${langLabel}`;
+      const query = encodeURIComponent(`${r.title} recipe ${langLabel}`);
+      document.getElementById('detailVideoLink').href = `https://www.youtube.com/results?search_query=${query}`;
+      document.getElementById('detailRecipeLink').href = `https://www.google.com/search?q=${query}`;
+    }
+
+    function toggleCookedCurrentMeal() {
+      if (!state.activeDetailMeal) return;
+      toggleCookedByKey(state.activeDetailMeal.key);
+    }
+
+    function toggleSaveMeal() {
+      if (!state.activeDetailMeal) return;
+      const id = state.activeDetailMeal.recipe.id;
+      state.savedMeals[id] = !state.savedMeals[id];
+      renderMealDetail();
+    }
+
+    function setMealFeedback(val) {
+      if (!state.activeDetailMeal) return;
+      const id = state.activeDetailMeal.recipe.id;
+      state.feedback[id] = state.feedback[id] === val ? null : val;
+      renderMealDetail();
+      renderMenuCards();
+    }
+
+    renderPantry();
+    renderRules();
+    generateWeeklyMenu();
+  </script>
+</body>
+</html>
