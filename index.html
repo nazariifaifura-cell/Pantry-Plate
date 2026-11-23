@@ -1448,4 +1448,29 @@
       document.getElementById('detailRecipeLink').href = `https://www.google.com/search?q=${query}`;
     }
 
-    function toggle
+    function toggleCookedCurrentMeal() {
+      if (!state.activeDetailMeal) return;
+      toggleCookedByKey(state.activeDetailMeal.key);
+    }
+
+    function toggleSaveMeal() {
+      if (!state.activeDetailMeal) return;
+      const id = state.activeDetailMeal.recipe.id;
+      state.savedMeals[id] = !state.savedMeals[id];
+      renderMealDetail();
+    }
+
+    function setMealFeedback(val) {
+      if (!state.activeDetailMeal) return;
+      const id = state.activeDetailMeal.recipe.id;
+      state.feedback[id] = state.feedback[id] === val ? null : val;
+      renderMealDetail();
+      renderMenuCards();
+    }
+
+    renderPantry();
+    renderRules();
+    generateWeeklyMenu();
+  </script>
+</body>
+</html>
