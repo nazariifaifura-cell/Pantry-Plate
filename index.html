@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>pantry &amp; plate</title>
+  <!-- Lightweight browser OCR for reading Best Before Dates from camera snapshots -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
     :root {
       --bg: #FAF9F6;
@@ -182,16 +184,17 @@
 
     .pantry-item {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
       gap: 10px;
     }
 
     .pantry-left {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 11px;
       min-width: 0;
+      flex: 1;
     }
 
     .item-icon {
@@ -204,6 +207,7 @@
       justify-content: center;
       font-size: 18px;
       flex-shrink: 0;
+      margin-top: 2px;
     }
 
     .item-name-row {
@@ -221,7 +225,39 @@
     .item-meta {
       font-size: 12px;
       color: var(--muted);
-      margin-top: 2px;
+      margin-top: 3px;
+    }
+
+    .pantry-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .bbd-corner {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 2px 7px;
+      border-radius: 8px;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .bbd-corner.expired, .bbd-corner.expiring {
+      background: var(--danger-bg);
+      color: var(--danger-ink);
+      border-color: #F5C2C2;
+    }
+
+    .bbd-corner.soon {
+      background: var(--warn-bg);
+      color: var(--warn-ink);
+      border-color: #F0D999;
     }
 
     .badge {
@@ -503,13 +539,13 @@
       border-radius: 18px;
       padding: 16px;
       box-shadow: 0 20px 45px rgba(0, 0, 0, 0.25);
-      max-height: 90vh;
+      max-height: 92vh;
       overflow-y: auto;
     }
 
     video {
       width: 100%;
-      max-height: 210px;
+      max-height: 200px;
       border-radius: 12px;
       background: #111;
       object-fit: cover;
@@ -560,6 +596,25 @@
       border-radius: 12px;
       padding: 10px;
       margin-top: 6px;
+    }
+
+    .bbd-step-card {
+      background: var(--green-soft);
+      border: 1px solid #C6DACD;
+      border-radius: 14px;
+      padding: 12px;
+      margin-top: 8px;
+    }
+
+    .step-pill {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      background: var(--green);
+      color: #fff;
+      padding: 2px 8px;
+      border-radius: 999px;
+      margin-bottom: 6px;
     }
   </style>
 </head>
@@ -613,7 +668,7 @@
       <input id="pantrySearch" class="input search-box" placeholder="Search your pantry..." oninput="renderPantry()" />
 
       <div class="stack-gap" style="margin-bottom:14px;">
-        <button class="btn btn-primary" onclick="openScanner()">📷 Scan UPC Barcode</button>
+        <button class="btn btn-primary" onclick="openScanner()">📷 Scan UPC &amp; Best Before</button>
         <button class="btn btn-secondary" onclick="openManualAdd()">+ Add Manually</button>
       </div>
 
@@ -747,24 +802,29 @@
     </nav>
   </div>
 
-  <!-- SCANNER MODAL -->
+  <!-- SCANNER MODAL (STEP 1: UPC -> STEP 2: BEST BEFORE DATE) -->
   <div id="scannerModal" class="modal-backdrop">
     <div class="modal-card">
       <div style="display:flex;justify-content:space-between;align-items:center;">
-        <h3 style="font-size:16px;">Scan UPC Barcode</h3>
+        <h3 id="scannerModalTitle" style="font-size:16px;">Step 1: Scan UPC Barcode</h3>
         <button class="link-btn" onclick="closeScanner()">Close</button>
       </div>
+
       <p id="scannerStatus" style="font-size:12px;color:var(--muted);margin-top:6px;">
         Requesting rear camera access...
       </p>
+
       <video id="cameraPreview" autoplay playsinline muted></video>
-      <div class="stack-gap">
+      <canvas id="ocrCanvas" style="display:none;"></canvas>
+
+      <!-- STEP 1 CONTROLS -->
+      <div id="step1BarcodeControls" class="stack-gap">
         <input id="barcodeInput" class="input" placeholder="Enter UPC/EAN barcode (e.g. 030000010204)" />
-        <button id="lookupBtn" class="btn btn-primary" onclick="lookupBarcode()">Look Up &amp; Add Item</button>
+        <button id="lookupBtn" class="btn btn-primary" onclick="lookupBarcode()">Look Up Product</button>
 
         <div id="unknownBarcodeBox" class="fallback-box stack-gap" style="display:none;">
           <p id="unknownBarcodeMsg" style="font-size:12px;font-weight:600;color:var(--warn-ink);">
-            Barcode not in database—name it once and it'll be saved for next time:
+            Barcode not in database—name it once:
           </p>
           <input id="fallbackItemName" class="input" placeholder="Item name (e.g. Jasmine Rice)" />
           <select id="fallbackItemCategory">
@@ -774,13 +834,52 @@
             <option value="Dairy">Dairy</option>
             <option value="Grains">Grains</option>
           </select>
-          <button class="btn btn-primary" onclick="saveUnknownBarcodeItem()">Save Name &amp; Add to Pantry</button>
+          <button class="btn btn-primary" onclick="saveUnknownBarcodeItem()">Continue to Best Before Date →</button>
         </div>
 
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          <button class="chip" onclick="quickScanDemo('Carrots', 'Produce', '1 bag', 'expiring', '🥕')">Sample: Carrots</button>
-          <button class="chip" onclick="quickScanDemo('Eggs', 'Dairy', '6 count', 'soon', '🥚')">Sample: Eggs</button>
-          <button class="chip" onclick="quickScanDemo('Salmon Fillet', 'Protein', '250g', 'expiring', '🐟')">Sample: Salmon</button>
+          <button class="chip" onclick="prepareStep2BBD('Carrots', 'Produce', '1 bag', '🥕')">Sample: Carrots</button>
+          <button class="chip" onclick="prepareStep2BBD('Eggs', 'Dairy', '6 count', '🥚')">Sample: Eggs</button>
+          <button class="chip" onclick="prepareStep2BBD('Salmon Fillet', 'Protein', '250g', '🐟')">Sample: Salmon</button>
+        </div>
+      </div>
+
+      <!-- STEP 2 CONTROLS: BEST BEFORE DATE (AI OCR OR MANUAL) -->
+      <div id="step2BBDControls" class="bbd-step-card stack-gap" style="display:none;">
+        <div>
+          <span class="step-pill">STEP 2 OF 2 • BEST BEFORE DATE</span>
+          <div id="pendingProductBanner" style="font-size:15px;font-weight:700;color:var(--ink);"></div>
+          <div id="pendingProductSub" style="font-size:12px;color:var(--muted);"></div>
+        </div>
+
+        <button id="snapBbdBtn" class="btn btn-primary" onclick="scanBBDFromCamera()">
+          📸 Snap Photo of Best Before Date (AI Read)
+        </button>
+
+        <input id="bbdPhotoFile" type="file" accept="image/*" capture="environment" style="display:none;" onchange="scanBBDFromFile(event)" />
+        <button class="btn btn-secondary" onclick="document.getElementById('bbdPhotoFile').click()">
+          🖼️ Take / Choose Close-Up Photo of Date
+        </button>
+
+        <p id="ocrStatusText" style="font-size:12px;color:var(--green-dark);font-weight:600;"></p>
+
+        <div>
+          <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px;">
+            OR PICK / ADJUST BEST BEFORE DATE MANUALLY
+          </label>
+          <input id="scannedBbdInput" type="date" class="input" />
+        </div>
+
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="chip" onclick="setQuickBbdDays(3)">+3 days</button>
+          <button class="chip" onclick="setQuickBbdDays(7)">+7 days</button>
+          <button class="chip" onclick="setQuickBbdDays(30)">+1 month</button>
+          <button class="chip" onclick="clearScannedBbd()">No date</button>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:8px;margin-top:4px;">
+          <button class="btn btn-secondary" onclick="backToStep1()">← Rescan</button>
+          <button class="btn btn-primary" onclick="confirmScannedItemWithBBD()">Add to Pantry ✓</button>
         </div>
       </div>
     </div>
@@ -802,12 +901,31 @@
         <option value="Grains">Grains</option>
         <option value="Pantry">Pantry</option>
       </select>
-      <select id="newItemExpiry">
-        <option value="fresh">Fresh</option>
-        <option value="soon">Use soon (3 days)</option>
-        <option value="expiring">Expiring soon</option>
-      </select>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px;">
+          BEST BEFORE DATE (OPTIONAL)
+        </label>
+        <input id="newItemBbd" type="date" class="input" />
+      </div>
       <button class="btn btn-primary" onclick="saveManualItem()">Save to Pantry</button>
+    </div>
+  </div>
+
+  <!-- EDIT BBD MODAL (TAP ANY BBD CORNER BADGE IN PANTRY) -->
+  <div id="editBbdModal" class="modal-backdrop">
+    <div class="modal-card stack-gap">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h3 id="editBbdTitle" style="font-size:16px;">Update Best Before Date</h3>
+        <button class="link-btn" onclick="closeEditBbd()">Close</button>
+      </div>
+      <input id="editBbdInput" type="date" class="input" />
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="chip" onclick="setEditQuickDays(3)">+3 days</button>
+        <button class="chip" onclick="setEditQuickDays(7)">+7 days</button>
+        <button class="chip" onclick="setEditQuickDays(30)">+1 month</button>
+        <button class="chip" onclick="document.getElementById('editBbdInput').value=''">Clear date</button>
+      </div>
+      <button class="btn btn-primary" onclick="saveEditedBbd()">Save Date</button>
     </div>
   </div>
 
@@ -944,15 +1062,42 @@
       } catch (_) {}
     }
 
+    function isoDatePlusDays(days) {
+      const d = new Date();
+      d.setDate(d.getDate() + days);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function getExpiryStatusFromBbd(bbd) {
+      if (!bbd) return 'fresh';
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const target = new Date(bbd + 'T00:00:00');
+      const diffDays = Math.round((target - today) / (1000 * 60 * 60 * 24));
+      if (diffDays <= 2) return 'expiring';
+      if (diffDays <= 5) return 'soon';
+      return 'fresh';
+    }
+
+    function formatBbdLabel(bbd) {
+      if (!bbd) return 'BBD: —';
+      const target = new Date(bbd + 'T00:00:00');
+      if (isNaN(target.getTime())) return `BBD: ${bbd}`;
+      return 'BBD: ' + target.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
     const state = {
       lang: 'en',
       pantry: [
-        { id: '1', name: 'Carrots', category: 'Produce', qty: '1 bag', expiry: 'expiring', icon: '🥕', used: false },
-        { id: '2', name: 'Eggs', category: 'Dairy', qty: '6 count', expiry: 'soon', icon: '🥚', used: false },
-        { id: '3', name: 'Salmon Fillet', category: 'Protein', qty: '250g', expiry: 'expiring', icon: '🐟', used: false },
-        { id: '4', name: 'Brown Rice', category: 'Grains', qty: '1 kg', expiry: 'fresh', icon: '🌾', used: false },
-        { id: '5', name: 'Rolled Oats', category: 'Grains', qty: '750g', expiry: 'fresh', icon: '🥣', used: false },
-        { id: '6', name: 'Spinach', category: 'Produce', qty: '150g', expiry: 'soon', icon: '🥬', used: false }
+        { id: '1', name: 'Carrots', category: 'Produce', qty: '1 bag', bbd: isoDatePlusDays(2), icon: '🥕', used: false },
+        { id: '2', name: 'Eggs', category: 'Dairy', qty: '6 count', bbd: isoDatePlusDays(4), icon: '🥚', used: false },
+        { id: '3', name: 'Salmon Fillet', category: 'Protein', qty: '250g', bbd: isoDatePlusDays(1), icon: '🐟', used: false },
+        { id: '4', name: 'Brown Rice', category: 'Grains', qty: '1 kg', bbd: isoDatePlusDays(90), icon: '🌾', used: false },
+        { id: '5', name: 'Rolled Oats', category: 'Grains', qty: '750g', bbd: isoDatePlusDays(60), icon: '🥣', used: false },
+        { id: '6', name: 'Spinach', category: 'Produce', qty: '150g', bbd: isoDatePlusDays(3), icon: '🥬', used: false }
       ],
       medDays: ['Mon', 'Wed', 'Fri'],
       meds: [
@@ -974,7 +1119,9 @@
       cameraStream: null,
       scanLoopId: null,
       lastScannedCode: '',
-      pendingUnknownCode: ''
+      pendingUnknownCode: '',
+      pendingScannedItem: null,
+      editingBbdItemId: null
     };
 
     const LANG_LABELS = {
@@ -1001,9 +1148,9 @@
       if (navMap[name]) document.getElementById(navMap[name]).classList.add('active');
     }
 
-    function expiryBadge(expiry) {
-      if (expiry === 'expiring') return '<span class="badge badge-expiring">Expiring soon</span>';
-      if (expiry === 'soon') return '<span class="badge badge-soon">Use soon</span>';
+    function expiryBadge(status) {
+      if (status === 'expiring') return '<span class="badge badge-expiring">Expiring soon</span>';
+      if (status === 'soon') return '<span class="badge badge-soon">Use soon</span>';
       return '<span class="badge badge-fresh">Fresh</span>';
     }
 
@@ -1014,21 +1161,29 @@
       );
       document.getElementById('pantryCountSub').textContent = `${state.pantry.length} items tracked`;
       const list = document.getElementById('pantryList');
-      list.innerHTML = filtered.map(item => `
-        <div class="card pantry-item" style="opacity:${item.used ? '0.55' : '1'}">
-          <div class="pantry-left">
-            <div class="item-icon">${item.icon || '🥫'}</div>
-            <div>
-              <div class="item-name-row">
-                <span class="item-name" style="text-decoration:${item.used ? 'line-through' : 'none'}">${item.name}</span>
-                ${expiryBadge(item.expiry)}
+      list.innerHTML = filtered.map(item => {
+        const status = getExpiryStatusFromBbd(item.bbd);
+        return `
+          <div class="card pantry-item" style="opacity:${item.used ? '0.55' : '1'}">
+            <div class="pantry-left">
+              <div class="item-icon">${item.icon || '🥫'}</div>
+              <div>
+                <div class="item-name-row">
+                  <span class="item-name" style="text-decoration:${item.used ? 'line-through' : 'none'}">${item.name}</span>
+                  ${expiryBadge(status)}
+                </div>
+                <div class="item-meta">${item.category} • ${item.qty}</div>
               </div>
-              <div class="item-meta">${item.category} • ${item.qty}</div>
+            </div>
+            <div class="pantry-right">
+              <span class="bbd-corner ${status}" onclick="openEditBbd('${item.id}')" title="Tap to edit Best Before Date">
+                ${formatBbdLabel(item.bbd)}
+              </span>
+              <button class="check-circle ${item.used ? 'done' : ''}" onclick="togglePantryItem('${item.id}')" title="Mark used">✓</button>
             </div>
           </div>
-          <button class="check-circle ${item.used ? 'done' : ''}" onclick="togglePantryItem('${item.id}')" title="Mark used">✓</button>
-        </div>
-      `).join('') || '<div class="card"><p class="screen-sub" style="margin:0;">No matching pantry items.</p></div>';
+        `;
+      }).join('') || '<div class="card"><p class="screen-sub" style="margin:0;">No matching pantry items.</p></div>';
     }
 
     function togglePantryItem(id) {
@@ -1038,7 +1193,35 @@
       renderPantry();
     }
 
+    function openEditBbd(itemId) {
+      const item = state.pantry.find(x => x.id === itemId);
+      if (!item) return;
+      state.editingBbdItemId = itemId;
+      document.getElementById('editBbdTitle').textContent = `BBD: ${item.name}`;
+      document.getElementById('editBbdInput').value = item.bbd || '';
+      document.getElementById('editBbdModal').classList.add('open');
+    }
+
+    function closeEditBbd() {
+      state.editingBbdItemId = null;
+      document.getElementById('editBbdModal').classList.remove('open');
+    }
+
+    function setEditQuickDays(days) {
+      document.getElementById('editBbdInput').value = isoDatePlusDays(days);
+    }
+
+    function saveEditedBbd() {
+      const item = state.pantry.find(x => x.id === state.editingBbdItemId);
+      if (item) {
+        item.bbd = document.getElementById('editBbdInput').value || '';
+      }
+      closeEditBbd();
+      renderPantry();
+    }
+
     function openManualAdd() {
+      document.getElementById('newItemBbd').value = '';
       document.getElementById('manualModal').classList.add('open');
     }
 
@@ -1051,18 +1234,19 @@
       if (!name) return;
       const qty = document.getElementById('newItemQty').value.trim() || '1 unit';
       const category = document.getElementById('newItemCategory').value;
-      const expiry = document.getElementById('newItemExpiry').value;
+      const bbd = document.getElementById('newItemBbd').value || '';
       state.pantry.unshift({
         id: String(Date.now()),
         name,
         category,
         qty,
-        expiry,
+        bbd,
         icon: CATEGORY_ICONS[category] || '🥫',
         used: false
       });
       document.getElementById('newItemName').value = '';
       document.getElementById('newItemQty').value = '';
+      document.getElementById('newItemBbd').value = '';
       closeManualAdd();
       renderPantry();
     }
@@ -1096,6 +1280,7 @@
 
       const tick = async () => {
         if (!document.getElementById('scannerModal').classList.contains('open')) return;
+        if (state.pendingScannedItem) return; // Pause UPC detection during Step 2 (BBD)
         if (video.readyState >= 2) {
           try {
             const barcodes = await detector.detect(video);
@@ -1120,8 +1305,13 @@
     async function openScanner() {
       state.lastScannedCode = '';
       state.pendingUnknownCode = '';
+      state.pendingScannedItem = null;
+      document.getElementById('scannerModalTitle').textContent = 'Step 1: Scan UPC Barcode';
+      document.getElementById('step1BarcodeControls').style.display = 'block';
+      document.getElementById('step2BBDControls').style.display = 'none';
       document.getElementById('unknownBarcodeBox').style.display = 'none';
       document.getElementById('scannerModal').classList.add('open');
+
       const status = document.getElementById('scannerStatus');
       const video = document.getElementById('cameraPreview');
 
@@ -1150,38 +1340,173 @@
         state.cameraStream.getTracks().forEach(t => t.stop());
         state.cameraStream = null;
       }
+      state.pendingScannedItem = null;
       document.getElementById('scannerModal').classList.remove('open');
     }
 
-    function quickScanDemo(name, category, qty, expiry, icon) {
-      state.pantry.unshift({
-        id: String(Date.now()),
+    // Transition from Step 1 (UPC) to Step 2 (Best Before Date)
+    function prepareStep2BBD(name, category, qty, customIcon) {
+      stopCameraScanLoop();
+      state.pendingScannedItem = {
         name,
         category,
-        qty,
-        expiry,
-        icon,
+        qty: qty || '1 item',
+        icon: customIcon || CATEGORY_ICONS[category] || '🥫'
+      };
+      document.getElementById('scannerModalTitle').textContent = 'Step 2: Best Before Date';
+      document.getElementById('scannerStatus').textContent =
+        'Point camera at the printed Best Before Date and tap Snap Photo, or enter the date below.';
+      document.getElementById('step1BarcodeControls').style.display = 'none';
+      document.getElementById('step2BBDControls').style.display = 'block';
+      document.getElementById('pendingProductBanner').textContent = `${state.pendingScannedItem.icon} ${name}`;
+      document.getElementById('pendingProductSub').textContent = `${category} • ${state.pendingScannedItem.qty}`;
+      document.getElementById('ocrStatusText').textContent = '';
+      document.getElementById('scannedBbdInput').value = '';
+    }
+
+    function backToStep1() {
+      state.pendingScannedItem = null;
+      state.lastScannedCode = '';
+      document.getElementById('scannerModalTitle').textContent = 'Step 1: Scan UPC Barcode';
+      document.getElementById('scannerStatus').textContent = 'Camera ready. Point at a barcode or enter a UPC below.';
+      document.getElementById('step2BBDControls').style.display = 'none';
+      document.getElementById('step1BarcodeControls').style.display = 'block';
+      const video = document.getElementById('cameraPreview');
+      if (state.cameraStream) startLiveBarcodeDetection(video);
+    }
+
+    function setQuickBbdDays(days) {
+      document.getElementById('scannedBbdInput').value = isoDatePlusDays(days);
+      document.getElementById('ocrStatusText').textContent = `Set to ${formatBbdLabel(document.getElementById('scannedBbdInput').value)}`;
+    }
+
+    function clearScannedBbd() {
+      document.getElementById('scannedBbdInput').value = '';
+      document.getElementById('ocrStatusText').textContent = 'Cleared date (will save without BBD).';
+    }
+
+    function confirmScannedItemWithBBD() {
+      if (!state.pendingScannedItem) return;
+      const bbd = document.getElementById('scannedBbdInput').value || '';
+      state.pantry.unshift({
+        id: String(Date.now()),
+        name: state.pendingScannedItem.name,
+        category: state.pendingScannedItem.category,
+        qty: state.pendingScannedItem.qty,
+        bbd,
+        icon: state.pendingScannedItem.icon,
         used: false
       });
+      document.getElementById('barcodeInput').value = '';
       closeScanner();
       renderPantry();
     }
 
-    function addScannedProductToPantry(name, category, qty) {
-      state.pantry.unshift({
-        id: String(Date.now()),
-        name,
-        category,
-        qty: qty || '1 item',
-        expiry: 'fresh',
-        icon: CATEGORY_ICONS[category] || '🥫',
-        used: false
-      });
-      document.getElementById('barcodeInput').value = '';
-      document.getElementById('unknownBarcodeBox').style.display = 'none';
-      state.pendingUnknownCode = '';
-      closeScanner();
-      renderPantry();
+    // Parse common North American & European printed expiry formats into YYYY-MM-DD
+    function parsePrintedDateFromText(rawText) {
+      const text = rawText.toUpperCase().replace(/\|/g, '1');
+      const months = {
+        JAN: '01', JA: '01',
+        FEB: '02', FE: '02',
+        MAR: '03', MR: '03',
+        APR: '04', AL: '04', AVR: '04',
+        MAY: '05', MA: '05', MAI: '05',
+        JUN: '06', JN: '06', JUIN: '06',
+        JUL: '07', JL: '07', JUIL: '07',
+        AUG: '08', AU: '08', AOU: '08',
+        SEP: '09', SE: '09', SEPT: '09',
+        OCT: '10', OC: '10',
+        NOV: '11', NO: '11',
+        DEC: '12', DE: '12'
+      };
+
+      // 1. YYYY-MM-DD or YYYY/MM/DD or YYYY.MM.DD
+      let m = text.match(/\b(202\d)[\/\-\.\s](0[1-9]|1[0-2])[\/\-\.\s](0[1-9]|[12]\d|3[01])\b/);
+      if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+
+      // 2. Canadian / bilingual format: 2026 NO 28 or 26 NO 28 or 2026 DEC 05
+      m = text.match(/\b(202\d|2\d)[\s\-\/\.]?(JAN|JA|FEB|FE|MAR|MR|APR|AL|AVR|MAY|MA|MAI|JUN|JN|JUIN|JUL|JL|JUIL|AUG|AU|AOU|SEP|SEPT|SE|OCT|OC|NOV|NO|DEC|DE)[\s\-\/\.]?(0[1-9]|[12]\d|3[01])\b/);
+      if (m) {
+        const yr = m[1].length === 2 ? `20${m[1]}` : m[1];
+        const mo = months[m[2]];
+        if (mo) return `${yr}-${mo}-${m[3]}`;
+      }
+
+      // 3. DD MMM YYYY or DD MMM YY (e.g. 28 NOV 2026)
+      m = text.match(/\b(0[1-9]|[12]\d|3[01])[\s\-\/\.]?(JAN|JA|FEB|FE|MAR|MR|APR|AL|AVR|MAY|MA|MAI|JUN|JN|JUIN|JUL|JL|JUIL|AUG|AU|AOU|SEP|SEPT|SE|OCT|OC|NOV|NO|DEC|DE)[\s\-\/\.]?(202\d|2\d)\b/);
+      if (m) {
+        const yr = m[3].length === 2 ? `20${m[3]}` : m[3];
+        const mo = months[m[2]];
+        if (mo) return `${yr}-${mo}-${m[1]}`;
+      }
+
+      // 4. MM/DD/YYYY or DD/MM/YYYY
+      m = text.match(/\b(0[1-9]|[12]\d|3[01])[\/\-\.](0[1-9]|[12]\d|3[01])[\/\-\.](202\d|2\d)\b/);
+      if (m) {
+        const yr = m[3].length === 2 ? `20${m[3]}` : m[3];
+        const first = parseInt(m[1], 10);
+        const second = parseInt(m[2], 10);
+        const mo = first > 12 ? m[2] : m[1];
+        const dy = first > 12 ? m[1] : m[2];
+        if (parseInt(mo, 10) <= 12 && parseInt(dy, 10) <= 31) {
+          return `${yr}-${mo}-${dy}`;
+        }
+      }
+
+      return null;
+    }
+
+    async function runOcrOnImageSource(imageSource) {
+      const statusEl = document.getElementById('ocrStatusText');
+      const snapBtn = document.getElementById('snapBbdBtn');
+      if (typeof Tesseract === 'undefined') {
+        statusEl.textContent = 'OCR engine unavailable offline — pick date below.';
+        return;
+      }
+
+      snapBtn.disabled = true;
+      statusEl.textContent = 'Reading Best Before Date from photo...';
+
+      try {
+        const result = await Tesseract.recognize(imageSource, 'eng');
+        const text = (result && result.data && result.data.text) ? result.data.text : '';
+        const parsedIso = parsePrintedDateFromText(text);
+
+        if (parsedIso) {
+          document.getElementById('scannedBbdInput').value = parsedIso;
+          statusEl.textContent = `✓ Detected ${formatBbdLabel(parsedIso)} — confirm or adjust below.`;
+        } else {
+          const snippet = text.replace(/\s+/g, ' ').trim().slice(0, 40);
+          statusEl.textContent = snippet
+            ? `Saw "${snippet}" — couldn't confirm date, please pick below.`
+            : 'No clear date text found — try closer lighting or pick date below.';
+        }
+      } catch (_) {
+        statusEl.textContent = 'Could not read photo — please pick date manually below.';
+      } finally {
+        snapBtn.disabled = false;
+      }
+    }
+
+    async function scanBBDFromCamera() {
+      const video = document.getElementById('cameraPreview');
+      const canvas = document.getElementById('ocrCanvas');
+      if (!video || video.readyState < 2) {
+        document.getElementById('ocrStatusText').textContent = 'Camera frame not ready — use "Take Close-Up Photo" or pick date.';
+        return;
+      }
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      await runOcrOnImageSource(canvas);
+    }
+
+    async function scanBBDFromFile(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      await runOcrOnImageSource(file);
+      event.target.value = '';
     }
 
     async function lookupBarcode(forcedCode) {
@@ -1197,7 +1522,7 @@
       const cache = loadBarcodeCache();
       if (cache[code]) {
         const saved = cache[code];
-        addScannedProductToPantry(saved.name, saved.category, saved.qty);
+        prepareStep2BBD(saved.name, saved.category, saved.qty);
         return;
       }
 
@@ -1226,21 +1551,21 @@
             const category = mapCategoryFromTags([...(p.categories_tags || []), rawName, brand]);
             cache[code] = { name: finalName, category, qty };
             saveBarcodeCache(cache);
-            addScannedProductToPantry(finalName, category, qty);
+            prepareStep2BBD(finalName, category, qty);
             return;
           }
         }
 
         state.pendingUnknownCode = code;
         document.getElementById('unknownBarcodeMsg').textContent =
-          `Barcode ${code} wasn't found in the database. Name it once and it'll save for next time:`;
+          `Barcode ${code} wasn't found in the database. Name it once:`;
         document.getElementById('fallbackItemName').value = '';
         document.getElementById('unknownBarcodeBox').style.display = 'block';
         status.textContent = 'Product not found automatically — enter a quick name below.';
       } catch (_) {
         state.pendingUnknownCode = code;
         document.getElementById('unknownBarcodeMsg').textContent =
-          `Couldn't reach barcode database (offline or blocked). Name ${code} once to save it:`;
+          `Couldn't reach barcode database. Name ${code} once to continue:`;
         document.getElementById('fallbackItemName').value = '';
         document.getElementById('unknownBarcodeBox').style.display = 'block';
         status.textContent = 'Lookup unavailable — enter a quick name below.';
@@ -1262,7 +1587,8 @@
       }
 
       document.getElementById('fallbackItemName').value = '';
-      addScannedProductToPantry(name, category, '1 item');
+      document.getElementById('unknownBarcodeBox').style.display = 'none';
+      prepareStep2BBD(name, category, '1 item');
     }
 
     function renderRules() {
