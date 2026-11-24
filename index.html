@@ -182,7 +182,7 @@
 
     .search-box { margin-bottom: 10px; }
 
-    /* Pantry Section Groups */
+    /* Pantry 5-Section Groups */
     .pantry-section {
       margin-top: 14px;
     }
@@ -191,7 +191,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 6px 10px;
+      padding: 7px 12px;
       border-radius: 10px;
       margin-bottom: 8px;
       font-size: 12px;
@@ -229,7 +229,7 @@
       font-weight: 700;
       padding: 2px 8px;
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.75);
+      background: rgba(255, 255, 255, 0.8);
     }
 
     .pantry-item {
@@ -726,7 +726,7 @@
     <!-- 2. PANTRY -->
     <section id="screen-pantry" class="screen">
       <h1 class="screen-title">My Pantry</h1>
-      <p class="screen-sub" id="pantryCountSub">0 items tracked</p>
+      <p class="screen-sub" id="pantryCountSub">0 items tracked across 5 sections</p>
 
       <input id="pantrySearch" class="input search-box" placeholder="Search fridge, produce, drinks, spices, dry goods..." oninput="renderPantry()" />
 
@@ -1118,6 +1118,7 @@
     ];
 
     const BARCODE_CACHE_KEY = 'pantryPlateBarcodeCacheV3';
+    const APP_STATE_KEY = 'pantryPlateAppStateV1';
 
     function loadBarcodeCache() {
       try {
@@ -1160,19 +1161,21 @@
       return 'BBD: ' + target.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
     }
 
+    const DEFAULT_PANTRY = [
+      { id: '1', name: 'Eggs', category: 'Fridge', qty: '6 count', bbd: isoDatePlusDays(4), icon: '🥚', used: false },
+      { id: '2', name: 'Salmon Fillet', category: 'Fridge', qty: '250g', bbd: isoDatePlusDays(1), icon: '🐟', used: false },
+      { id: '3', name: 'Carrots', category: 'Produce', qty: '1 bag', bbd: isoDatePlusDays(2), icon: '🥕', used: false },
+      { id: '4', name: 'Spinach', category: 'Produce', qty: '150g', bbd: isoDatePlusDays(3), icon: '🥬', used: false },
+      { id: '5', name: 'Oat Milk', category: 'Drinks', qty: '1 L', bbd: isoDatePlusDays(9), icon: '🥛', used: false },
+      { id: '6', name: 'Sparkling Water', category: 'Drinks', qty: '6 cans', bbd: isoDatePlusDays(120), icon: '🫧', used: false },
+      { id: '7', name: 'Paprika & Oregano', category: 'Spices', qty: '2 jars', bbd: isoDatePlusDays(365), icon: '🌿', used: false },
+      { id: '8', name: 'Brown Rice', category: 'Dry Goods', qty: '1 kg', bbd: isoDatePlusDays(90), icon: '🌾', used: false },
+      { id: '9', name: 'Rolled Oats', category: 'Dry Goods', qty: '750g', bbd: isoDatePlusDays(60), icon: '🥣', used: false }
+    ];
+
     const state = {
       lang: 'en',
-      pantry: [
-        { id: '1', name: 'Eggs', category: 'Fridge', qty: '6 count', bbd: isoDatePlusDays(4), icon: '🥚', used: false },
-        { id: '2', name: 'Salmon Fillet', category: 'Fridge', qty: '250g', bbd: isoDatePlusDays(1), icon: '🐟', used: false },
-        { id: '3', name: 'Carrots', category: 'Produce', qty: '1 bag', bbd: isoDatePlusDays(2), icon: '🥕', used: false },
-        { id: '4', name: 'Spinach', category: 'Produce', qty: '150g', bbd: isoDatePlusDays(3), icon: '🥬', used: false },
-        { id: '5', name: 'Oat Milk', category: 'Drinks', qty: '1 L', bbd: isoDatePlusDays(9), icon: '🥛', used: false },
-        { id: '6', name: 'Sparkling Water', category: 'Drinks', qty: '6 cans', bbd: isoDatePlusDays(120), icon: '🫧', used: false },
-        { id: '7', name: 'Paprika & Oregano', category: 'Spices', qty: '2 jars', bbd: isoDatePlusDays(365), icon: '🌿', used: false },
-        { id: '8', name: 'Brown Rice', category: 'Dry Goods', qty: '1 kg', bbd: isoDatePlusDays(90), icon: '🌾', used: false },
-        { id: '9', name: 'Rolled Oats', category: 'Dry Goods', qty: '750g', bbd: isoDatePlusDays(60), icon: '🥣', used: false }
-      ],
+      pantry: DEFAULT_PANTRY,
       medDays: ['Mon', 'Wed', 'Fri'],
       meds: [
         { id: 'm1', name: 'Morning med', schedule: 'Mon, Wed, Fri • Morning', avoid: 'dairy' }
@@ -1198,6 +1201,41 @@
       editingBbdItemId: null
     };
 
+    function persistAppState() {
+      try {
+        localStorage.setItem(APP_STATE_KEY, JSON.stringify({
+          lang: state.lang,
+          pantry: state.pantry,
+          medDays: state.medDays,
+          meds: state.meds,
+          allergies: state.allergies,
+          prefs: state.prefs,
+          generationMode: state.generationMode,
+          cookedMeals: state.cookedMeals,
+          feedback: state.feedback,
+          savedMeals: state.savedMeals
+        }));
+      } catch (_) {}
+    }
+
+    function hydrateAppState() {
+      try {
+        const raw = localStorage.getItem(APP_STATE_KEY);
+        if (!raw) return;
+        const saved = JSON.parse(raw);
+        if (saved.lang) state.lang = saved.lang;
+        if (Array.isArray(saved.pantry) && saved.pantry.length) state.pantry = saved.pantry;
+        if (Array.isArray(saved.medDays)) state.medDays = saved.medDays;
+        if (Array.isArray(saved.meds)) state.meds = saved.meds;
+        if (Array.isArray(saved.allergies)) state.allergies = saved.allergies;
+        if (saved.prefs) state.prefs = saved.prefs;
+        if (saved.generationMode) state.generationMode = saved.generationMode;
+        if (saved.cookedMeals) state.cookedMeals = saved.cookedMeals;
+        if (saved.feedback) state.feedback = saved.feedback;
+        if (saved.savedMeals) state.savedMeals = saved.savedMeals;
+      } catch (_) {}
+    }
+
     const LANG_LABELS = {
       en: 'English',
       fr: 'Français',
@@ -1211,6 +1249,7 @@
       document.getElementById('topLangSelect').value = lang;
       document.getElementById('welcomeLangSelect').value = lang;
       document.getElementById('rulesLangLabel').textContent = LANG_LABELS[lang] || 'English';
+      persistAppState();
       if (state.activeDetailMeal) renderMealDetail();
     }
 
@@ -1293,6 +1332,7 @@
       const item = state.pantry.find(x => x.id === id);
       if (!item) return;
       item.used = !item.used;
+      persistAppState();
       renderPantry();
     }
 
@@ -1318,6 +1358,7 @@
       const item = state.pantry.find(x => x.id === state.editingBbdItemId);
       if (item) {
         item.bbd = document.getElementById('editBbdInput').value || '';
+        persistAppState();
       }
       closeEditBbd();
       renderPantry();
@@ -1350,6 +1391,7 @@
       document.getElementById('newItemName').value = '';
       document.getElementById('newItemQty').value = '';
       document.getElementById('newItemBbd').value = '';
+      persistAppState();
       closeManualAdd();
       renderPantry();
     }
@@ -1501,6 +1543,7 @@
         used: false
       });
       document.getElementById('barcodeInput').value = '';
+      persistAppState();
       closeScanner();
       renderPantry();
     }
@@ -1732,6 +1775,7 @@
       } else {
         state.medDays.push(day);
       }
+      persistAppState();
       renderRules();
     }
 
@@ -1746,12 +1790,14 @@
       state.meds.push({ id: String(Date.now()), name, schedule, avoid });
       document.getElementById('newMedName').value = '';
       document.getElementById('newMedSchedule').value = '';
+      persistAppState();
       closeAddMed();
       renderRules();
     }
 
     function removeMed(id) {
       state.meds = state.meds.filter(m => m.id !== id);
+      persistAppState();
       renderRules();
     }
 
@@ -1761,11 +1807,13 @@
       } else {
         state.allergies.push(allergy);
       }
+      persistAppState();
       renderRules();
     }
 
     function setPref(slot, opt) {
       state.prefs[slot] = opt;
+      persistAppState();
       renderRules();
     }
 
@@ -1773,6 +1821,7 @@
       state.generationMode = mode;
       document.getElementById('modeStrictBtn').classList.toggle('active', mode === 'strict');
       document.getElementById('modeFlexibleBtn').classList.toggle('active', mode === 'flexible');
+      persistAppState();
       generateWeeklyMenu();
     }
 
@@ -1903,6 +1952,7 @@
         if (pantryItem) pantryItem.used = nowCooked;
       });
 
+      persistAppState();
       renderPantry();
       renderMenuCards();
       if (state.activeDetailMeal && state.activeDetailMeal.key === key) {
@@ -1970,6 +2020,7 @@
       if (!state.activeDetailMeal) return;
       const id = state.activeDetailMeal.recipe.id;
       state.savedMeals[id] = !state.savedMeals[id];
+      persistAppState();
       renderMealDetail();
     }
 
@@ -1977,10 +2028,15 @@
       if (!state.activeDetailMeal) return;
       const id = state.activeDetailMeal.recipe.id;
       state.feedback[id] = state.feedback[id] === val ? null : val;
+      persistAppState();
       renderMealDetail();
       renderMenuCards();
     }
 
+    hydrateAppState();
+    setLanguage(state.lang);
+    document.getElementById('modeStrictBtn').classList.toggle('active', state.generationMode === 'strict');
+    document.getElementById('modeFlexibleBtn').classList.toggle('active', state.generationMode === 'flexible');
     renderPantry();
     renderRules();
     generateWeeklyMenu();
