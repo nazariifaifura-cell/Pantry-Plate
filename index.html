@@ -182,21 +182,71 @@
 
     .search-box { margin-bottom: 10px; }
 
-    /* Pantry 5-Section Groups */
-    .pantry-section {
-      margin-top: 14px;
-    }
-
-    .section-header {
+    .pantry-toolbar {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 7px 12px;
-      border-radius: 10px;
+      gap: 8px;
+      margin: 8px 0 4px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .mini-action-btn {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Pantry 5-Section Collapsible Groups */
+    .pantry-section {
+      margin-top: 12px;
+    }
+
+    .section-header {
+      width: 100%;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 9px 12px;
+      border-radius: 12px;
       margin-bottom: 8px;
       font-size: 12px;
       font-weight: 700;
       letter-spacing: 0.02em;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .section-header-left {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-width: 0;
+    }
+
+    .section-header-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .chev {
+      display: inline-block;
+      font-size: 12px;
+      transition: transform 0.16s ease;
+    }
+
+    .chev.collapsed {
+      transform: rotate(-90deg);
     }
 
     .sec-fridge {
@@ -229,7 +279,20 @@
       font-weight: 700;
       padding: 2px 8px;
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.8);
+      background: rgba(255, 255, 255, 0.85);
+    }
+
+    .section-alert {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: var(--danger-bg);
+      color: var(--danger-ink);
+    }
+
+    .section-items.collapsed {
+      display: none;
     }
 
     .pantry-item {
@@ -730,9 +793,17 @@
 
       <input id="pantrySearch" class="input search-box" placeholder="Search fridge, produce, drinks, spices, dry goods..." oninput="renderPantry()" />
 
-      <div class="stack-gap" style="margin-bottom:10px;">
+      <div class="stack-gap" style="margin-bottom:8px;">
         <button class="btn btn-primary" onclick="openScanner()">📷 Scan UPC &amp; Best Before</button>
         <button class="btn btn-secondary" onclick="openManualAdd()">+ Add Manually</button>
+      </div>
+
+      <div class="pantry-toolbar">
+        <span id="pantryCollapseHint">Tap section arrow to expand/collapse</span>
+        <div style="display:flex;gap:6px;">
+          <button class="mini-action-btn" onclick="setAllSectionsCollapsed(false)">Expand all</button>
+          <button class="mini-action-btn" onclick="setAllSectionsCollapsed(true)">Collapse all</button>
+        </div>
       </div>
 
       <div id="pantryList"></div>
@@ -1019,6 +1090,8 @@
       Dinner: ['Balanced', 'Quick', 'High protein']
     };
 
+    const AUTO_COLLAPSE_THRESHOLD = 12;
+
     const PANTRY_SECTIONS = [
       { key: 'Fridge', label: '❄️ Fridge & Dairy', headerClass: 'sec-fridge', cardClass: 'zone-fridge', defaultIcon: '🧊' },
       { key: 'Produce', label: '🥬 Produce', headerClass: 'sec-produce', cardClass: 'zone-produce', defaultIcon: '🥦' },
@@ -1118,7 +1191,7 @@
     ];
 
     const BARCODE_CACHE_KEY = 'pantryPlateBarcodeCacheV3';
-    const APP_STATE_KEY = 'pantryPlateAppStateV1';
+    const APP_STATE_KEY = 'pantryPlateAppStateV2';
 
     function loadBarcodeCache() {
       try {
@@ -1176,6 +1249,8 @@
     const state = {
       lang: 'en',
       pantry: DEFAULT_PANTRY,
+      collapsedSections: {},
+      manualCollapseOverride: false,
       medDays: ['Mon', 'Wed', 'Fri'],
       meds: [
         { id: 'm1', name: 'Morning med', schedule: 'Mon, Wed, Fri • Morning', avoid: 'dairy' }
@@ -1201,11 +1276,21 @@
       editingBbdItemId: null
     };
 
+    function applyAutoCollapseRuleIfNeeded() {
+      if (state.manualCollapseOverride) return;
+      const shouldCollapse = state.pantry.length >= AUTO_COLLAPSE_THRESHOLD;
+      PANTRY_SECTIONS.forEach(sec => {
+        state.collapsedSections[sec.key] = shouldCollapse;
+      });
+    }
+
     function persistAppState() {
       try {
         localStorage.setItem(APP_STATE_KEY, JSON.stringify({
           lang: state.lang,
           pantry: state.pantry,
+          collapsedSections: state.collapsedSections,
+          manualCollapseOverride: state.manualCollapseOverride,
           medDays: state.medDays,
           meds: state.meds,
           allergies: state.allergies,
@@ -1225,6 +1310,8 @@
         const saved = JSON.parse(raw);
         if (saved.lang) state.lang = saved.lang;
         if (Array.isArray(saved.pantry) && saved.pantry.length) state.pantry = saved.pantry;
+        if (saved.collapsedSections) state.collapsedSections = saved.collapsedSections;
+        if (typeof saved.manualCollapseOverride === 'boolean') state.manualCollapseOverride = saved.manualCollapseOverride;
         if (Array.isArray(saved.medDays)) state.medDays = saved.medDays;
         if (Array.isArray(saved.meds)) state.meds = saved.meds;
         if (Array.isArray(saved.allergies)) state.allergies = saved.allergies;
@@ -1275,12 +1362,41 @@
       return 'Dry Goods';
     }
 
+    function toggleSectionCollapse(secKey) {
+      const searching = Boolean((document.getElementById('pantrySearch').value || '').trim());
+      if (searching) return;
+      state.manualCollapseOverride = true;
+      state.collapsedSections[secKey] = !state.collapsedSections[secKey];
+      persistAppState();
+      renderPantry();
+    }
+
+    function setAllSectionsCollapsed(collapsed) {
+      state.manualCollapseOverride = true;
+      PANTRY_SECTIONS.forEach(sec => {
+        state.collapsedSections[sec.key] = collapsed;
+      });
+      persistAppState();
+      renderPantry();
+    }
+
     function renderPantry() {
-      const q = (document.getElementById('pantrySearch').value || '').toLowerCase().trim();
+      const rawSearch = document.getElementById('pantrySearch').value || '';
+      const q = rawSearch.toLowerCase().trim();
+      const isSearching = q.length > 0;
+
       const filtered = state.pantry.filter(i =>
         i.name.toLowerCase().includes(q) || i.category.toLowerCase().includes(q)
       );
-      document.getElementById('pantryCountSub').textContent = `${state.pantry.length} items tracked across 5 sections`;
+
+      const autoModeActive = !state.manualCollapseOverride && state.pantry.length >= AUTO_COLLAPSE_THRESHOLD;
+      document.getElementById('pantryCountSub').textContent =
+        `${state.pantry.length} items tracked across 5 sections`;
+      document.getElementById('pantryCollapseHint').textContent = isSearching
+        ? 'Showing matching items'
+        : autoModeActive
+          ? `Auto-folded (${AUTO_COLLAPSE_THRESHOLD}+ items) • tap arrow to open`
+          : 'Tap section arrow to expand/collapse';
 
       const list = document.getElementById('pantryList');
       if (filtered.length === 0) {
@@ -1291,6 +1407,9 @@
       list.innerHTML = PANTRY_SECTIONS.map(sec => {
         const itemsInSec = filtered.filter(i => normalizeSectionKey(i.category) === sec.key);
         if (itemsInSec.length === 0) return '';
+
+        const isCollapsed = isSearching ? false : Boolean(state.collapsedSections[sec.key]);
+        const expiringCount = itemsInSec.filter(i => !i.used && getExpiryStatusFromBbd(i.bbd) === 'expiring').length;
 
         const cardsHtml = itemsInSec.map(item => {
           const status = getExpiryStatusFromBbd(item.bbd);
@@ -1318,11 +1437,19 @@
 
         return `
           <div class="pantry-section">
-            <div class="section-header ${sec.headerClass}">
-              <span>${sec.label}</span>
-              <span class="section-count">${itemsInSec.length}</span>
+            <button type="button" class="section-header ${sec.headerClass}" onclick="toggleSectionCollapse('${sec.key}')">
+              <span class="section-header-left">
+                <span class="chev ${isCollapsed ? 'collapsed' : ''}">▾</span>
+                <span>${sec.label}</span>
+              </span>
+              <span class="section-header-right">
+                ${expiringCount > 0 ? `<span class="section-alert">${expiringCount} soon</span>` : ''}
+                <span class="section-count">${itemsInSec.length}</span>
+              </span>
+            </button>
+            <div class="section-items ${isCollapsed ? 'collapsed' : ''}">
+              ${cardsHtml}
             </div>
-            ${cardsHtml}
           </div>
         `;
       }).join('');
@@ -1391,6 +1518,7 @@
       document.getElementById('newItemName').value = '';
       document.getElementById('newItemQty').value = '';
       document.getElementById('newItemBbd').value = '';
+      applyAutoCollapseRuleIfNeeded();
       persistAppState();
       closeManualAdd();
       renderPantry();
@@ -1543,6 +1671,7 @@
         used: false
       });
       document.getElementById('barcodeInput').value = '';
+      applyAutoCollapseRuleIfNeeded();
       persistAppState();
       closeScanner();
       renderPantry();
@@ -2034,6 +2163,7 @@
     }
 
     hydrateAppState();
+    applyAutoCollapseRuleIfNeeded();
     setLanguage(state.lang);
     document.getElementById('modeStrictBtn').classList.toggle('active', state.generationMode === 'strict');
     document.getElementById('modeFlexibleBtn').classList.toggle('active', state.generationMode === 'flexible');
