@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>pantry &amp; plate</title>
-  <!-- Lightweight browser OCR for reading Best Before Dates from camera snapshots -->
+  <!-- Browser OCR for reading Best Before Dates from camera snapshots -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
     :root {
@@ -122,7 +122,7 @@
       border-radius: 16px;
       padding: 14px;
       box-shadow: var(--shadow);
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
 
     .btn {
@@ -182,12 +182,69 @@
 
     .search-box { margin-bottom: 10px; }
 
+    /* Pantry Section Groups */
+    .pantry-section {
+      margin-top: 14px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 10px;
+      border-radius: 10px;
+      margin-bottom: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .sec-fridge {
+      background: #EAF3FA;
+      color: #255378;
+    }
+
+    .sec-produce {
+      background: #E8F5EC;
+      color: #255C38;
+    }
+
+    .sec-drinks {
+      background: #F1ECFA;
+      color: #4D357A;
+    }
+
+    .sec-spices {
+      background: #FCEEE6;
+      color: #7D3B18;
+    }
+
+    .sec-dry {
+      background: #F7EFE4;
+      color: #6E4A1E;
+    }
+
+    .section-count {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.75);
+    }
+
     .pantry-item {
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
       gap: 10px;
+      border-left: 4px solid var(--border);
     }
+
+    .pantry-item.zone-fridge { border-left-color: #6CA6D6; }
+    .pantry-item.zone-produce { border-left-color: #5DA878; }
+    .pantry-item.zone-drinks { border-left-color: #9378CC; }
+    .pantry-item.zone-spices { border-left-color: #D9824B; }
+    .pantry-item.zone-dry { border-left-color: #C99A5B; }
 
     .pantry-left {
       display: flex;
@@ -209,6 +266,12 @@
       flex-shrink: 0;
       margin-top: 2px;
     }
+
+    .zone-fridge .item-icon { background: #EAF3FA; }
+    .zone-produce .item-icon { background: #E8F5EC; }
+    .zone-drinks .item-icon { background: #F1ECFA; }
+    .zone-spices .item-icon { background: #FCEEE6; }
+    .zone-dry .item-icon { background: #F7EFE4; }
 
     .item-name-row {
       display: flex;
@@ -665,14 +728,14 @@
       <h1 class="screen-title">My Pantry</h1>
       <p class="screen-sub" id="pantryCountSub">0 items tracked</p>
 
-      <input id="pantrySearch" class="input search-box" placeholder="Search your pantry..." oninput="renderPantry()" />
+      <input id="pantrySearch" class="input search-box" placeholder="Search fridge, produce, drinks, spices, dry goods..." oninput="renderPantry()" />
 
-      <div class="stack-gap" style="margin-bottom:14px;">
+      <div class="stack-gap" style="margin-bottom:10px;">
         <button class="btn btn-primary" onclick="openScanner()">📷 Scan UPC &amp; Best Before</button>
         <button class="btn btn-secondary" onclick="openManualAdd()">+ Add Manually</button>
       </div>
 
-      <div id="pantryList" class="stack-gap"></div>
+      <div id="pantryList"></div>
     </section>
 
     <!-- 3. RULES & SAFETY -->
@@ -826,21 +889,21 @@
           <p id="unknownBarcodeMsg" style="font-size:12px;font-weight:600;color:var(--warn-ink);">
             Barcode not in database—name it once:
           </p>
-          <input id="fallbackItemName" class="input" placeholder="Item name (e.g. Jasmine Rice)" />
+          <input id="fallbackItemName" class="input" placeholder="Item name (e.g. Smoked Paprika)" />
           <select id="fallbackItemCategory">
-            <option value="Pantry">Pantry</option>
-            <option value="Produce">Produce</option>
-            <option value="Protein">Protein</option>
-            <option value="Dairy">Dairy</option>
-            <option value="Grains">Grains</option>
+            <option value="Fridge">❄️ Fridge &amp; Dairy</option>
+            <option value="Produce">🥬 Produce</option>
+            <option value="Drinks">🥤 Drinks</option>
+            <option value="Spices">🧂 Spices &amp; Seasonings</option>
+            <option value="Dry Goods">🌾 Dry Goods &amp; Pantry</option>
           </select>
           <button class="btn btn-primary" onclick="saveUnknownBarcodeItem()">Continue to Best Before Date →</button>
         </div>
 
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <button class="chip" onclick="prepareStep2BBD('Carrots', 'Produce', '1 bag', '🥕')">Sample: Carrots</button>
-          <button class="chip" onclick="prepareStep2BBD('Eggs', 'Dairy', '6 count', '🥚')">Sample: Eggs</button>
-          <button class="chip" onclick="prepareStep2BBD('Salmon Fillet', 'Protein', '250g', '🐟')">Sample: Salmon</button>
+          <button class="chip" onclick="prepareStep2BBD('Garlic Powder', 'Spices', '1 jar', '🧄')">Sample: Garlic Powder</button>
+          <button class="chip" onclick="prepareStep2BBD('Orange Juice', 'Drinks', '1 L', '🧃')">Sample: Juice</button>
         </div>
       </div>
 
@@ -892,14 +955,14 @@
         <h3 style="font-size:16px;">Add Pantry Item</h3>
         <button class="link-btn" onclick="closeManualAdd()">Close</button>
       </div>
-      <input id="newItemName" class="input" placeholder="Item name (e.g. Brown Rice)" />
-      <input id="newItemQty" class="input" placeholder="Quantity (e.g. 500g or 1 bag)" />
+      <input id="newItemName" class="input" placeholder="Item name (e.g. Oregano or Brown Rice)" />
+      <input id="newItemQty" class="input" placeholder="Quantity (e.g. 500g or 1 jar)" />
       <select id="newItemCategory">
-        <option value="Produce">Produce</option>
-        <option value="Protein">Protein</option>
-        <option value="Dairy">Dairy</option>
-        <option value="Grains">Grains</option>
-        <option value="Pantry">Pantry</option>
+        <option value="Fridge">❄️ Fridge &amp; Dairy</option>
+        <option value="Produce">🥬 Produce</option>
+        <option value="Drinks">🥤 Drinks</option>
+        <option value="Spices">🧂 Spices &amp; Seasonings</option>
+        <option value="Dry Goods">🌾 Dry Goods &amp; Pantry</option>
       </select>
       <div>
         <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px;">
@@ -956,12 +1019,20 @@
       Dinner: ['Balanced', 'Quick', 'High protein']
     };
 
+    const PANTRY_SECTIONS = [
+      { key: 'Fridge', label: '❄️ Fridge & Dairy', headerClass: 'sec-fridge', cardClass: 'zone-fridge', defaultIcon: '🧊' },
+      { key: 'Produce', label: '🥬 Produce', headerClass: 'sec-produce', cardClass: 'zone-produce', defaultIcon: '🥦' },
+      { key: 'Drinks', label: '🥤 Drinks', headerClass: 'sec-drinks', cardClass: 'zone-drinks', defaultIcon: '🧃' },
+      { key: 'Spices', label: '🧂 Spices & Seasonings', headerClass: 'sec-spices', cardClass: 'zone-spices', defaultIcon: '🌿' },
+      { key: 'Dry Goods', label: '🌾 Dry Goods & Pantry', headerClass: 'sec-dry', cardClass: 'zone-dry', defaultIcon: '🫙' }
+    ];
+
     const CATEGORY_ICONS = {
+      Fridge: '🧊',
       Produce: '🥦',
-      Protein: '🍗',
-      Dairy: '🥛',
-      Grains: '🌾',
-      Pantry: '🫙'
+      Drinks: '🧃',
+      Spices: '🌿',
+      'Dry Goods': '🫙'
     };
 
     const RECIPES = [
@@ -1046,7 +1117,7 @@
       }
     ];
 
-    const BARCODE_CACHE_KEY = 'pantryPlateBarcodeCacheV1';
+    const BARCODE_CACHE_KEY = 'pantryPlateBarcodeCacheV3';
 
     function loadBarcodeCache() {
       try {
@@ -1092,12 +1163,15 @@
     const state = {
       lang: 'en',
       pantry: [
-        { id: '1', name: 'Carrots', category: 'Produce', qty: '1 bag', bbd: isoDatePlusDays(2), icon: '🥕', used: false },
-        { id: '2', name: 'Eggs', category: 'Dairy', qty: '6 count', bbd: isoDatePlusDays(4), icon: '🥚', used: false },
-        { id: '3', name: 'Salmon Fillet', category: 'Protein', qty: '250g', bbd: isoDatePlusDays(1), icon: '🐟', used: false },
-        { id: '4', name: 'Brown Rice', category: 'Grains', qty: '1 kg', bbd: isoDatePlusDays(90), icon: '🌾', used: false },
-        { id: '5', name: 'Rolled Oats', category: 'Grains', qty: '750g', bbd: isoDatePlusDays(60), icon: '🥣', used: false },
-        { id: '6', name: 'Spinach', category: 'Produce', qty: '150g', bbd: isoDatePlusDays(3), icon: '🥬', used: false }
+        { id: '1', name: 'Eggs', category: 'Fridge', qty: '6 count', bbd: isoDatePlusDays(4), icon: '🥚', used: false },
+        { id: '2', name: 'Salmon Fillet', category: 'Fridge', qty: '250g', bbd: isoDatePlusDays(1), icon: '🐟', used: false },
+        { id: '3', name: 'Carrots', category: 'Produce', qty: '1 bag', bbd: isoDatePlusDays(2), icon: '🥕', used: false },
+        { id: '4', name: 'Spinach', category: 'Produce', qty: '150g', bbd: isoDatePlusDays(3), icon: '🥬', used: false },
+        { id: '5', name: 'Oat Milk', category: 'Drinks', qty: '1 L', bbd: isoDatePlusDays(9), icon: '🥛', used: false },
+        { id: '6', name: 'Sparkling Water', category: 'Drinks', qty: '6 cans', bbd: isoDatePlusDays(120), icon: '🫧', used: false },
+        { id: '7', name: 'Paprika & Oregano', category: 'Spices', qty: '2 jars', bbd: isoDatePlusDays(365), icon: '🌿', used: false },
+        { id: '8', name: 'Brown Rice', category: 'Dry Goods', qty: '1 kg', bbd: isoDatePlusDays(90), icon: '🌾', used: false },
+        { id: '9', name: 'Rolled Oats', category: 'Dry Goods', qty: '750g', bbd: isoDatePlusDays(60), icon: '🥣', used: false }
       ],
       medDays: ['Mon', 'Wed', 'Fri'],
       meds: [
@@ -1154,36 +1228,65 @@
       return '<span class="badge badge-fresh">Fresh</span>';
     }
 
+    function normalizeSectionKey(category) {
+      if (category === 'Fridge' || category === 'Dairy' || category === 'Protein') return 'Fridge';
+      if (category === 'Produce') return 'Produce';
+      if (category === 'Drinks') return 'Drinks';
+      if (category === 'Spices') return 'Spices';
+      return 'Dry Goods';
+    }
+
     function renderPantry() {
       const q = (document.getElementById('pantrySearch').value || '').toLowerCase().trim();
       const filtered = state.pantry.filter(i =>
         i.name.toLowerCase().includes(q) || i.category.toLowerCase().includes(q)
       );
-      document.getElementById('pantryCountSub').textContent = `${state.pantry.length} items tracked`;
+      document.getElementById('pantryCountSub').textContent = `${state.pantry.length} items tracked across 5 sections`;
+
       const list = document.getElementById('pantryList');
-      list.innerHTML = filtered.map(item => {
-        const status = getExpiryStatusFromBbd(item.bbd);
-        return `
-          <div class="card pantry-item" style="opacity:${item.used ? '0.55' : '1'}">
-            <div class="pantry-left">
-              <div class="item-icon">${item.icon || '🥫'}</div>
-              <div>
-                <div class="item-name-row">
-                  <span class="item-name" style="text-decoration:${item.used ? 'line-through' : 'none'}">${item.name}</span>
-                  ${expiryBadge(status)}
+      if (filtered.length === 0) {
+        list.innerHTML = '<div class="card" style="margin-top:10px;"><p class="screen-sub" style="margin:0;">No matching pantry items.</p></div>';
+        return;
+      }
+
+      list.innerHTML = PANTRY_SECTIONS.map(sec => {
+        const itemsInSec = filtered.filter(i => normalizeSectionKey(i.category) === sec.key);
+        if (itemsInSec.length === 0) return '';
+
+        const cardsHtml = itemsInSec.map(item => {
+          const status = getExpiryStatusFromBbd(item.bbd);
+          return `
+            <div class="card pantry-item ${sec.cardClass}" style="opacity:${item.used ? '0.55' : '1'}">
+              <div class="pantry-left">
+                <div class="item-icon">${item.icon || sec.defaultIcon}</div>
+                <div>
+                  <div class="item-name-row">
+                    <span class="item-name" style="text-decoration:${item.used ? 'line-through' : 'none'}">${item.name}</span>
+                    ${expiryBadge(status)}
+                  </div>
+                  <div class="item-meta">${item.qty}</div>
                 </div>
-                <div class="item-meta">${item.category} • ${item.qty}</div>
+              </div>
+              <div class="pantry-right">
+                <span class="bbd-corner ${status}" onclick="openEditBbd('${item.id}')" title="Tap to edit Best Before Date">
+                  ${formatBbdLabel(item.bbd)}
+                </span>
+                <button class="check-circle ${item.used ? 'done' : ''}" onclick="togglePantryItem('${item.id}')" title="Mark used">✓</button>
               </div>
             </div>
-            <div class="pantry-right">
-              <span class="bbd-corner ${status}" onclick="openEditBbd('${item.id}')" title="Tap to edit Best Before Date">
-                ${formatBbdLabel(item.bbd)}
-              </span>
-              <button class="check-circle ${item.used ? 'done' : ''}" onclick="togglePantryItem('${item.id}')" title="Mark used">✓</button>
+          `;
+        }).join('');
+
+        return `
+          <div class="pantry-section">
+            <div class="section-header ${sec.headerClass}">
+              <span>${sec.label}</span>
+              <span class="section-count">${itemsInSec.length}</span>
             </div>
+            ${cardsHtml}
           </div>
         `;
-      }).join('') || '<div class="card"><p class="screen-sub" style="margin:0;">No matching pantry items.</p></div>';
+      }).join('');
     }
 
     function togglePantryItem(id) {
@@ -1253,11 +1356,11 @@
 
     function mapCategoryFromTags(tags = []) {
       const joined = tags.join(' ').toLowerCase();
-      if (/milk|cheese|yogurt|butter|cream|egg|dairy|lait|fromage|yaourt/.test(joined)) return 'Dairy';
-      if (/chicken|beef|pork|fish|salmon|tuna|meat|turkey|shrimp|protein|viande|poisson/.test(joined)) return 'Protein';
-      if (/rice|oat|pasta|noodle|bread|flour|grain|cereal|riz|avoine|pates/.test(joined)) return 'Grains';
-      if (/vegetable|fruit|carrot|spinach|apple|banana|tomato|produce|legume|fruit/.test(joined)) return 'Produce';
-      return 'Pantry';
+      if (/spice|seasoning|herb|paprika|cumin|cinnamon|oregano|thyme|basil|pepper|turmeric|curry|clove|nutmeg|coriander|épice|herbe/.test(joined)) return 'Spices';
+      if (/beverage|drink|juice|soda|water|tea|coffee|boisson|jus|eau/.test(joined)) return 'Drinks';
+      if (/milk|cheese|yogurt|butter|cream|egg|dairy|chicken|beef|pork|fish|salmon|tuna|meat|turkey|shrimp|lait|fromage|yaourt|viande|poisson/.test(joined)) return 'Fridge';
+      if (/vegetable|fruit|carrot|spinach|apple|banana|tomato|produce|legume/.test(joined)) return 'Produce';
+      return 'Dry Goods';
     }
 
     function stopCameraScanLoop() {
@@ -1280,7 +1383,7 @@
 
       const tick = async () => {
         if (!document.getElementById('scannerModal').classList.contains('open')) return;
-        if (state.pendingScannedItem) return; // Pause UPC detection during Step 2 (BBD)
+        if (state.pendingScannedItem) return;
         if (video.readyState >= 2) {
           try {
             const barcodes = await detector.detect(video);
@@ -1344,14 +1447,14 @@
       document.getElementById('scannerModal').classList.remove('open');
     }
 
-    // Transition from Step 1 (UPC) to Step 2 (Best Before Date)
     function prepareStep2BBD(name, category, qty, customIcon) {
       stopCameraScanLoop();
+      const normalizedCat = normalizeSectionKey(category);
       state.pendingScannedItem = {
         name,
-        category,
+        category: normalizedCat,
         qty: qty || '1 item',
-        icon: customIcon || CATEGORY_ICONS[category] || '🥫'
+        icon: customIcon || CATEGORY_ICONS[normalizedCat] || '🥫'
       };
       document.getElementById('scannerModalTitle').textContent = 'Step 2: Best Before Date';
       document.getElementById('scannerStatus').textContent =
@@ -1359,7 +1462,7 @@
       document.getElementById('step1BarcodeControls').style.display = 'none';
       document.getElementById('step2BBDControls').style.display = 'block';
       document.getElementById('pendingProductBanner').textContent = `${state.pendingScannedItem.icon} ${name}`;
-      document.getElementById('pendingProductSub').textContent = `${category} • ${state.pendingScannedItem.qty}`;
+      document.getElementById('pendingProductSub').textContent = `${normalizedCat} • ${state.pendingScannedItem.qty}`;
       document.getElementById('ocrStatusText').textContent = '';
       document.getElementById('scannedBbdInput').value = '';
     }
@@ -1402,7 +1505,6 @@
       renderPantry();
     }
 
-    // Parse common North American & European printed expiry formats into YYYY-MM-DD
     function parsePrintedDateFromText(rawText) {
       const text = rawText.toUpperCase().replace(/\|/g, '1');
       const months = {
@@ -1420,11 +1522,9 @@
         DEC: '12', DE: '12'
       };
 
-      // 1. YYYY-MM-DD or YYYY/MM/DD or YYYY.MM.DD
       let m = text.match(/\b(202\d)[\/\-\.\s](0[1-9]|1[0-2])[\/\-\.\s](0[1-9]|[12]\d|3[01])\b/);
       if (m) return `${m[1]}-${m[2]}-${m[3]}`;
 
-      // 2. Canadian / bilingual format: 2026 NO 28 or 26 NO 28 or 2026 DEC 05
       m = text.match(/\b(202\d|2\d)[\s\-\/\.]?(JAN|JA|FEB|FE|MAR|MR|APR|AL|AVR|MAY|MA|MAI|JUN|JN|JUIN|JUL|JL|JUIL|AUG|AU|AOU|SEP|SEPT|SE|OCT|OC|NOV|NO|DEC|DE)[\s\-\/\.]?(0[1-9]|[12]\d|3[01])\b/);
       if (m) {
         const yr = m[1].length === 2 ? `20${m[1]}` : m[1];
@@ -1432,7 +1532,6 @@
         if (mo) return `${yr}-${mo}-${m[3]}`;
       }
 
-      // 3. DD MMM YYYY or DD MMM YY (e.g. 28 NOV 2026)
       m = text.match(/\b(0[1-9]|[12]\d|3[01])[\s\-\/\.]?(JAN|JA|FEB|FE|MAR|MR|APR|AL|AVR|MAY|MA|MAI|JUN|JN|JUIN|JUL|JL|JUIL|AUG|AU|AOU|SEP|SEPT|SE|OCT|OC|NOV|NO|DEC|DE)[\s\-\/\.]?(202\d|2\d)\b/);
       if (m) {
         const yr = m[3].length === 2 ? `20${m[3]}` : m[3];
@@ -1440,12 +1539,10 @@
         if (mo) return `${yr}-${mo}-${m[1]}`;
       }
 
-      // 4. MM/DD/YYYY or DD/MM/YYYY
       m = text.match(/\b(0[1-9]|[12]\d|3[01])[\/\-\.](0[1-9]|[12]\d|3[01])[\/\-\.](202\d|2\d)\b/);
       if (m) {
         const yr = m[3].length === 2 ? `20${m[3]}` : m[3];
         const first = parseInt(m[1], 10);
-        const second = parseInt(m[2], 10);
         const mo = first > 12 ? m[2] : m[1];
         const dy = first > 12 ? m[1] : m[2];
         if (parseInt(mo, 10) <= 12 && parseInt(dy, 10) <= 31) {
