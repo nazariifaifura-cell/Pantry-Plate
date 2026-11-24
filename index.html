@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>pantry &amp; plate</title>
-  <!-- Browser OCR for reading Best Before Dates from camera snapshots -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
     :root {
@@ -249,30 +248,11 @@
       transform: rotate(-90deg);
     }
 
-    .sec-fridge {
-      background: #EAF3FA;
-      color: #255378;
-    }
-
-    .sec-produce {
-      background: #E8F5EC;
-      color: #255C38;
-    }
-
-    .sec-drinks {
-      background: #F1ECFA;
-      color: #4D357A;
-    }
-
-    .sec-spices {
-      background: #FCEEE6;
-      color: #7D3B18;
-    }
-
-    .sec-dry {
-      background: #F7EFE4;
-      color: #6E4A1E;
-    }
+    .sec-fridge { background: #EAF3FA; color: #255378; }
+    .sec-produce { background: #E8F5EC; color: #255C38; }
+    .sec-drinks { background: #F1ECFA; color: #4D357A; }
+    .sec-spices { background: #FCEEE6; color: #7D3B18; }
+    .sec-dry { background: #F7EFE4; color: #6E4A1E; }
 
     .section-count {
       font-size: 11px;
@@ -669,13 +649,65 @@
       overflow-y: auto;
     }
 
+    .camera-box {
+      position: relative;
+      width: 100%;
+      margin: 10px 0;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #111;
+    }
+
     video {
       width: 100%;
-      max-height: 200px;
-      border-radius: 12px;
-      background: #111;
+      height: 200px;
+      display: block;
       object-fit: cover;
-      margin: 10px 0;
+    }
+
+    .bbd-aim-overlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      background: rgba(0, 0, 0, 0.28);
+    }
+
+    .bbd-aim-overlay.active {
+      display: flex;
+    }
+
+    .bbd-aim-box {
+      width: 82%;
+      height: 62px;
+      border: 2.5px solid #6EE7B7;
+      border-radius: 10px;
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.28);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 4px;
+    }
+
+    .bbd-aim-label {
+      background: rgba(17, 24, 20, 0.78);
+      color: #ECFDF5;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+
+    .ocr-preview-strip {
+      width: 100%;
+      max-height: 54px;
+      object-fit: contain;
+      border: 1px solid #C6DACD;
+      border-radius: 8px;
+      background: #fff;
+      display: none;
     }
 
     .med-row {
@@ -948,7 +980,14 @@
         Requesting rear camera access...
       </p>
 
-      <video id="cameraPreview" autoplay playsinline muted></video>
+      <div class="camera-box">
+        <video id="cameraPreview" autoplay playsinline muted></video>
+        <div id="bbdAimOverlay" class="bbd-aim-overlay">
+          <div class="bbd-aim-box">
+            <span class="bbd-aim-label">Align Best Before Date inside box</span>
+          </div>
+        </div>
+      </div>
       <canvas id="ocrCanvas" style="display:none;"></canvas>
 
       <!-- STEP 1 CONTROLS -->
@@ -978,7 +1017,7 @@
         </div>
       </div>
 
-      <!-- STEP 2 CONTROLS: BEST BEFORE DATE (AI OCR OR MANUAL) -->
+      <!-- STEP 2 CONTROLS: BEST BEFORE DATE (IN-APP HD CAPTURE + OCR OR MANUAL) -->
       <div id="step2BBDControls" class="bbd-step-card stack-gap" style="display:none;">
         <div>
           <span class="step-pill">STEP 2 OF 2 • BEST BEFORE DATE</span>
@@ -987,13 +1026,10 @@
         </div>
 
         <button id="snapBbdBtn" class="btn btn-primary" onclick="scanBBDFromCamera()">
-          📸 Snap Photo of Best Before Date (AI Read)
+          📸 Capture &amp; Read Date in Box (AI)
         </button>
 
-        <input id="bbdPhotoFile" type="file" accept="image/*" capture="environment" style="display:none;" onchange="scanBBDFromFile(event)" />
-        <button class="btn btn-secondary" onclick="document.getElementById('bbdPhotoFile').click()">
-          🖼️ Take / Choose Close-Up Photo of Date
-        </button>
+        <img id="ocrCropPreview" class="ocr-preview-strip" alt="Captured date crop" />
 
         <p id="ocrStatusText" style="font-size:12px;color:var(--green-dark);font-weight:600;"></p>
 
@@ -1045,7 +1081,7 @@
     </div>
   </div>
 
-  <!-- EDIT BBD MODAL (TAP ANY BBD CORNER BADGE IN PANTRY) -->
+  <!-- EDIT BBD MODAL -->
   <div id="editBbdModal" class="modal-backdrop">
     <div class="modal-card stack-gap">
       <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -1192,6 +1228,7 @@
 
     const BARCODE_CACHE_KEY = 'pantryPlateBarcodeCacheV3';
     const APP_STATE_KEY = 'pantryPlateAppStateV2';
+    const SESSION_NAV_KEY = 'pantryPlateSessionNavV1';
 
     function loadBarcodeCache() {
       try {
@@ -1205,6 +1242,23 @@
       try {
         localStorage.setItem(BARCODE_CACHE_KEY, JSON.stringify(cache));
       } catch (_) {}
+    }
+
+    function saveSessionNav(screenName, pendingItem = null) {
+      try {
+        sessionStorage.setItem(SESSION_NAV_KEY, JSON.stringify({
+          screen: screenName,
+          pendingScannedItem: pendingItem
+        }));
+      } catch (_) {}
+    }
+
+    function loadSessionNav() {
+      try {
+        return JSON.parse(sessionStorage.getItem(SESSION_NAV_KEY) || 'null');
+      } catch (_) {
+        return null;
+      }
     }
 
     function isoDatePlusDays(days) {
@@ -1248,6 +1302,7 @@
 
     const state = {
       lang: 'en',
+      activeScreen: 'welcome',
       pantry: DEFAULT_PANTRY,
       collapsedSections: {},
       manualCollapseOverride: false,
@@ -1269,6 +1324,7 @@
       savedMeals: {},
       activeDetailMeal: null,
       cameraStream: null,
+      imageCapture: null,
       scanLoopId: null,
       lastScannedCode: '',
       pendingUnknownCode: '',
@@ -1341,6 +1397,8 @@
     }
 
     function showScreen(name) {
+      state.activeScreen = name;
+      saveSessionNav(name, state.pendingScannedItem);
       document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
       document.getElementById(`screen-${name}`).classList.add('active');
       document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
@@ -1579,9 +1637,12 @@
       state.lastScannedCode = '';
       state.pendingUnknownCode = '';
       state.pendingScannedItem = null;
+      saveSessionNav(state.activeScreen, null);
       document.getElementById('scannerModalTitle').textContent = 'Step 1: Scan UPC Barcode';
       document.getElementById('step1BarcodeControls').style.display = 'block';
       document.getElementById('step2BBDControls').style.display = 'none';
+      document.getElementById('bbdAimOverlay').classList.remove('active');
+      document.getElementById('ocrCropPreview').style.display = 'none';
       document.getElementById('unknownBarcodeBox').style.display = 'none';
       document.getElementById('scannerModal').classList.add('open');
 
@@ -1595,12 +1656,34 @@
 
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } },
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          },
           audio: false
         });
         state.cameraStream = stream;
         video.srcObject = stream;
-        status.textContent = 'Camera ready. Point at a barcode or enter a UPC below.';
+
+        const track = stream.getVideoTracks()[0];
+        if (track && 'ImageCapture' in window) {
+          try {
+            state.imageCapture = new ImageCapture(track);
+          } catch (_) {
+            state.imageCapture = null;
+          }
+        }
+        if (track && track.getCapabilities) {
+          try {
+            const caps = track.getCapabilities();
+            if (caps.focusMode && caps.focusMode.includes('continuous')) {
+              await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+            }
+          } catch (_) {}
+        }
+
+        status.textContent = 'HD Camera ready. Point at a barcode or enter a UPC below.';
         startLiveBarcodeDetection(video);
       } catch (_) {
         status.textContent = 'Camera permission blocked or unavailable; type a UPC or pick a sample below.';
@@ -1613,7 +1696,10 @@
         state.cameraStream.getTracks().forEach(t => t.stop());
         state.cameraStream = null;
       }
+      state.imageCapture = null;
       state.pendingScannedItem = null;
+      saveSessionNav(state.activeScreen, null);
+      document.getElementById('bbdAimOverlay').classList.remove('active');
       document.getElementById('scannerModal').classList.remove('open');
     }
 
@@ -1626,11 +1712,14 @@
         qty: qty || '1 item',
         icon: customIcon || CATEGORY_ICONS[normalizedCat] || '🥫'
       };
+      saveSessionNav(state.activeScreen, state.pendingScannedItem);
       document.getElementById('scannerModalTitle').textContent = 'Step 2: Best Before Date';
       document.getElementById('scannerStatus').textContent =
-        'Point camera at the printed Best Before Date and tap Snap Photo, or enter the date below.';
+        'Line up the printed Best Before Date inside the green box and tap Capture.';
       document.getElementById('step1BarcodeControls').style.display = 'none';
       document.getElementById('step2BBDControls').style.display = 'block';
+      document.getElementById('bbdAimOverlay').classList.add('active');
+      document.getElementById('ocrCropPreview').style.display = 'none';
       document.getElementById('pendingProductBanner').textContent = `${state.pendingScannedItem.icon} ${name}`;
       document.getElementById('pendingProductSub').textContent = `${normalizedCat} • ${state.pendingScannedItem.qty}`;
       document.getElementById('ocrStatusText').textContent = '';
@@ -1640,8 +1729,10 @@
     function backToStep1() {
       state.pendingScannedItem = null;
       state.lastScannedCode = '';
+      saveSessionNav(state.activeScreen, null);
       document.getElementById('scannerModalTitle').textContent = 'Step 1: Scan UPC Barcode';
-      document.getElementById('scannerStatus').textContent = 'Camera ready. Point at a barcode or enter a UPC below.';
+      document.getElementById('scannerStatus').textContent = 'HD Camera ready. Point at a barcode or enter a UPC below.';
+      document.getElementById('bbdAimOverlay').classList.remove('active');
       document.getElementById('step2BBDControls').style.display = 'none';
       document.getElementById('step1BarcodeControls').style.display = 'block';
       const video = document.getElementById('cameraPreview');
@@ -1678,10 +1769,16 @@
     }
 
     function parsePrintedDateFromText(rawText) {
-      const text = rawText.toUpperCase().replace(/\|/g, '1');
+      const cleaned = rawText
+        .toUpperCase()
+        .replace(/\|/g, '1')
+        .replace(/O(?=\d)/g, '0')
+        .replace(/(?<=\d)O/g, '0')
+        .replace(/\b(?:BB|BBD|BEST\s*BEFORE|MEILLEUR\s*AVANT|MA|EXP|EXPIRY|USE\s*BY)\b[:\.\-\s]*/g, ' ');
+
       const months = {
         JAN: '01', JA: '01',
-        FEB: '02', FE: '02',
+        FEB: '02', FE: '02', FEV: '02',
         MAR: '03', MR: '03',
         APR: '04', AL: '04', AVR: '04',
         MAY: '05', MA: '05', MAI: '05',
@@ -1694,24 +1791,43 @@
         DEC: '12', DE: '12'
       };
 
-      let m = text.match(/\b(202\d)[\/\-\.\s](0[1-9]|1[0-2])[\/\-\.\s](0[1-9]|[12]\d|3[01])\b/);
+      const monthPattern = '(?:JAN|JA|FEB|FEV|FE|MAR|MR|APR|AL|AVR|MAY|MA|MAI|JUN|JN|JUIN|JUL|JL|JUIL|AUG|AU|AOU|SEP|SEPT|SE|OCT|OC|NOV|NO|DEC|DE)';
+
+      // 1) YYYY-MM-DD or YYYY/MM/DD or YYYY.MM.DD or YYYY MM DD
+      let m = cleaned.match(/\b(202\d|203\d)[\/\-\.\s]+(0[1-9]|1[0-2])[\/\-\.\s]+(0[1-9]|[12]\d|3[01])\b/);
       if (m) return `${m[1]}-${m[2]}-${m[3]}`;
 
-      m = text.match(/\b(202\d|2\d)[\s\-\/\.]?(JAN|JA|FEB|FE|MAR|MR|APR|AL|AVR|MAY|MA|MAI|JUN|JN|JUIN|JUL|JL|JUIL|AUG|AU|AOU|SEP|SEPT|SE|OCT|OC|NOV|NO|DEC|DE)[\s\-\/\.]?(0[1-9]|[12]\d|3[01])\b/);
+      // 2) Compact 8-digit YYYYMMDD (e.g. 20261215)
+      m = cleaned.match(/\b(202\d|203\d)(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\b/);
+      if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+
+      // 3) Canadian bilingual format: 2026 NO 24, 26NO24, 2026-JN-15, 26/DEC/08
+      m = cleaned.match(new RegExp(`\\b(202\\d|203\\d|2\\d)[\\s\\-\\/\\.]*(${monthPattern})[\\s\\-\\/\\.]*(0[1-9]|[12]\\d|3[01])\\b`));
       if (m) {
         const yr = m[1].length === 2 ? `20${m[1]}` : m[1];
         const mo = months[m[2]];
         if (mo) return `${yr}-${mo}-${m[3]}`;
       }
 
-      m = text.match(/\b(0[1-9]|[12]\d|3[01])[\s\-\/\.]?(JAN|JA|FEB|FE|MAR|MR|APR|AL|AVR|MAY|MA|MAI|JUN|JN|JUIN|JUL|JL|JUIL|AUG|AU|AOU|SEP|SEPT|SE|OCT|OC|NOV|NO|DEC|DE)[\s\-\/\.]?(202\d|2\d)\b/);
+      // 4) Day-Month-Year: 24 NO 2026, 24NO26, 05-DEC-2026
+      m = cleaned.match(new RegExp(`\\b(0[1-9]|[12]\\d|3[01])[\\s\\-\\/\\.]*(${monthPattern})[\\s\\-\\/\\.]*(202\\d|203\\d|2\\d)\\b`));
       if (m) {
         const yr = m[3].length === 2 ? `20${m[3]}` : m[3];
         const mo = months[m[2]];
         if (mo) return `${yr}-${mo}-${m[1]}`;
       }
 
-      m = text.match(/\b(0[1-9]|[12]\d|3[01])[\/\-\.](0[1-9]|[12]\d|3[01])[\/\-\.](202\d|2\d)\b/);
+      // 5) Month + Year only (common on canned goods & spices, e.g., NO 2027, 05/2027, 2027-08)
+      m = cleaned.match(new RegExp(`\\b(${monthPattern})[\\s\\-\\/\\.]*(202\\d|203\\d)\\b`));
+      if (m) {
+        const mo = months[m[1]];
+        if (mo) return `${m[2]}-${mo}-28`;
+      }
+      m = cleaned.match(/\b(0[1-9]|1[0-2])[\/\-\.](202\d|203\d)\b/);
+      if (m) return `${m[2]}-${m[1]}-28`;
+
+      // 6) Numeric MM/DD/YY or DD/MM/YY
+      m = cleaned.match(/\b(0[1-9]|[12]\d|3[01])[\/\-\.](0[1-9]|[12]\d|3[01])[\/\-\.](202\d|203\d|2\d)\b/);
       if (m) {
         const yr = m[3].length === 2 ? `20${m[3]}` : m[3];
         const first = parseInt(m[1], 10);
@@ -1725,19 +1841,100 @@
       return null;
     }
 
-    async function runOcrOnImageSource(imageSource) {
+    function buildEnhancedDateCropCanvas(sourceDrawable, srcWidth, srcHeight) {
+      // Crop the center region matching the green aiming box (82% wide x 34% tall) and upscale 2x
+      const cropW = Math.max(120, Math.round(srcWidth * 0.84));
+      const cropH = Math.max(60, Math.round(srcHeight * 0.36));
+      const cropX = Math.round((srcWidth - cropW) / 2);
+      const cropY = Math.round((srcHeight - cropH) / 2);
+
+      const scale = cropW < 900 ? 2 : 1;
+      const canvas = document.getElementById('ocrCanvas');
+      canvas.width = cropW * scale;
+      canvas.height = cropH * scale;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(sourceDrawable, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
+
+      // Convert to high-contrast grayscale so faint dot-matrix ink stands out clearly
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const d = imgData.data;
+      let minLum = 255;
+      let maxLum = 0;
+      const lums = new Uint8Array(d.length / 4);
+
+      for (let i = 0, p = 0; i < d.length; i += 4, p++) {
+        const lum = Math.round(0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]);
+        lums[p] = lum;
+        if (lum < minLum) minLum = lum;
+        if (lum > maxLum) maxLum = lum;
+      }
+
+      const range = Math.max(1, maxLum - minLum);
+      for (let i = 0, p = 0; i < d.length; i += 4, p++) {
+        // Stretch contrast across full 0..255 range
+        let norm = ((lums[p] - minLum) * 255) / range;
+        // Boost contrast curve
+        norm = norm < 115 ? norm * 0.55 : Math.min(255, norm * 1.25);
+        d[i] = norm;
+        d[i + 1] = norm;
+        d[i + 2] = norm;
+      }
+      ctx.putImageData(imgData, 0, 0);
+
+      const previewImg = document.getElementById('ocrCropPreview');
+      previewImg.src = canvas.toDataURL('image/png');
+      previewImg.style.display = 'block';
+
+      return canvas;
+    }
+
+    async function scanBBDFromCamera() {
+      const video = document.getElementById('cameraPreview');
       const statusEl = document.getElementById('ocrStatusText');
       const snapBtn = document.getElementById('snapBbdBtn');
+
       if (typeof Tesseract === 'undefined') {
         statusEl.textContent = 'OCR engine unavailable offline — pick date below.';
         return;
       }
 
       snapBtn.disabled = true;
-      statusEl.textContent = 'Reading Best Before Date from photo...';
+      statusEl.textContent = 'Capturing high-res frame & reading date...';
 
       try {
-        const result = await Tesseract.recognize(imageSource, 'eng');
+        let processedCanvas = null;
+
+        // Prefer hardware still-photo capture (full sensor resolution without leaving the webpage)
+        if (state.imageCapture) {
+          try {
+            const blob = await state.imageCapture.takePhoto();
+            const bitmap = await createImageBitmap(blob);
+            processedCanvas = buildEnhancedDateCropCanvas(bitmap, bitmap.width, bitmap.height);
+            bitmap.close();
+          } catch (_) {
+            processedCanvas = null;
+          }
+        }
+
+        // Fallback to high-res video frame if takePhoto isn't supported
+        if (!processedCanvas) {
+          if (!video || video.readyState < 2) {
+            statusEl.textContent = 'Camera not ready yet — wait 1 second or pick date below.';
+            return;
+          }
+          processedCanvas = buildEnhancedDateCropCanvas(
+            video,
+            video.videoWidth || 1280,
+            video.videoHeight || 720
+          );
+        }
+
+        const result = await Tesseract.recognize(processedCanvas, 'eng', {
+          tessedit_pageseg_mode: '6',
+          tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/-.: '
+        });
+
         const text = (result && result.data && result.data.text) ? result.data.text : '';
         const parsedIso = parsePrintedDateFromText(text);
 
@@ -1745,37 +1942,16 @@
           document.getElementById('scannedBbdInput').value = parsedIso;
           statusEl.textContent = `✓ Detected ${formatBbdLabel(parsedIso)} — confirm or adjust below.`;
         } else {
-          const snippet = text.replace(/\s+/g, ' ').trim().slice(0, 40);
+          const snippet = text.replace(/\s+/g, ' ').trim().slice(0, 42);
           statusEl.textContent = snippet
-            ? `Saw "${snippet}" — couldn't confirm date, please pick below.`
-            : 'No clear date text found — try closer lighting or pick date below.';
+            ? `Read "${snippet}" — move slightly closer/further or pick date below.`
+            : 'Could not read text inside box — hold steady in good light or pick date below.';
         }
       } catch (_) {
         statusEl.textContent = 'Could not read photo — please pick date manually below.';
       } finally {
         snapBtn.disabled = false;
       }
-    }
-
-    async function scanBBDFromCamera() {
-      const video = document.getElementById('cameraPreview');
-      const canvas = document.getElementById('ocrCanvas');
-      if (!video || video.readyState < 2) {
-        document.getElementById('ocrStatusText').textContent = 'Camera frame not ready — use "Take Close-Up Photo" or pick date.';
-        return;
-      }
-      canvas.width = video.videoWidth || 640;
-      canvas.height = video.videoHeight || 480;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      await runOcrOnImageSource(canvas);
-    }
-
-    async function scanBBDFromFile(event) {
-      const file = event.target.files && event.target.files[0];
-      if (!file) return;
-      await runOcrOnImageSource(file);
-      event.target.value = '';
     }
 
     async function lookupBarcode(forcedCode) {
@@ -2170,6 +2346,12 @@
     renderPantry();
     renderRules();
     generateWeeklyMenu();
+
+    // Restore active tab if Android reloaded the tab after backgrounding
+    const sessionNav = loadSessionNav();
+    if (sessionNav && sessionNav.screen && sessionNav.screen !== 'welcome') {
+      showScreen(sessionNav.screen);
+    }
   </script>
 </body>
 </html>
